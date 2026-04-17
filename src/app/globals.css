@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Tokens — texto primário #FFFFFF, secundário #A3A3A3, accent #F59E0B */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
+
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 0%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 38 92% 50%;
+
+    --radius: 0.75rem;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading font-bold text-foreground;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply border-b border-border bg-background/85 backdrop-blur-xl;
+  }
+
+  /* Escala tipográfica — Poppins em títulos, Inter no corpo */
+  .typo-hero {
+    @apply font-heading text-[2.25rem] font-bold leading-[1.1] tracking-tight text-foreground md:text-[3rem];
+  }
+
+  .typo-h2 {
+    @apply font-heading text-[1.75rem] font-bold leading-snug tracking-tight text-foreground md:text-[2rem];
+  }
+
+  .typo-h3 {
+    @apply font-heading text-[1.375rem] font-bold leading-snug tracking-tight text-foreground md:text-2xl;
+  }
+
+  .typo-h4 {
+    @apply font-heading text-lg font-bold leading-snug text-foreground md:text-xl;
+  }
+
+  .typo-body {
+    @apply font-body text-base font-normal leading-relaxed text-foreground;
+  }
+
+  .typo-body-muted {
+    @apply font-body text-base font-normal leading-relaxed text-muted-foreground;
+  }
+
+  .typo-small {
+    @apply font-body text-sm font-normal leading-normal text-muted-foreground;
+  }
+
+  .typo-overline {
+    @apply font-heading text-xs font-bold uppercase tracking-[0.2em] text-primary;
+  }
+
+  .typo-label {
+    @apply font-heading text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground;
+  }
+
+  /** Botões e CTAs: uppercase + espaçamento (premium) */
+  .typo-btn {
+    @apply font-heading text-xs font-bold uppercase tracking-[0.2em];
+  }
+
+  .typo-btn-sm {
+    @apply font-heading text-[10px] font-bold uppercase tracking-[0.15em];
+  }
+
+  .typo-price {
+    @apply font-heading text-sm font-bold text-primary md:text-base;
+  }
+
+  .typo-price-lg {
+    @apply font-heading text-xl font-bold text-primary;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
