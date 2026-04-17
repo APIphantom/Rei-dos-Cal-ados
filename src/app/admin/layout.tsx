@@ -1,43 +1,24 @@
-import Link from "next/link";
-import { Container } from "@/components/ui/container";
+import { AdminMobileNav, AdminSidebar } from "@/components/admin/AdminSidebar";
 import { requireAdmin } from "@/lib/auth/require-admin";
-
-const adminNav = [
-  { href: "/admin", label: "Painel" },
-  { href: "/admin/produtos", label: "Produtos" },
-];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] border-t border-border">
-      <div className="border-b border-border bg-card/50">
-        <Container className="flex flex-wrap items-center justify-between gap-4 py-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Admin</span>
-            <span className="text-muted-foreground">|</span>
-            <nav className="flex flex-wrap gap-2">
-              {adminNav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-lg border border-transparent px-3 py-2 text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+    <div className="min-h-screen bg-[#050505] text-white">
+      <div className="flex min-h-screen">
+        <aside className="hidden w-64 shrink-0 border-r border-[#1f1f1f] bg-[#0a0a0a] md:block">
+          <div className="sticky top-0 h-screen overflow-y-auto">
+            <AdminSidebar />
           </div>
-          <Link
-            href="/"
-            className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-primary"
-          >
-            ← Voltar à loja
-          </Link>
-        </Container>
+        </aside>
+        <div className="flex min-h-screen flex-1 flex-col">
+          <div className="border-b border-[#1f1f1f] px-4 py-3 md:hidden">
+            <AdminMobileNav />
+          </div>
+          <main className="flex-1 px-4 py-6 md:px-8 md:py-10">{children}</main>
+        </div>
       </div>
-      {children}
     </div>
   );
 }

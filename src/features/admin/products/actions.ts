@@ -4,34 +4,45 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser, getProfileForUser } from "@/lib/auth/server";
 
-const productSchema = z.object({
+function normalizeHex(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "#888888";
+  if (t.startsWith("#")) {
+    if (t.length === 4) {
+      const r = t[1] ?? "0";
+      const g = t[2] ?? "0";
+      const b = t[3] ?? "0";
+      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+    }
+    return t.length >= 7 ? t.slice(0, 7).toUpperCase() : "#888888";
+  }
+  const only = t.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6).padEnd(6, "0");
+  return `#${only}`.toUpperCase();
+}
+
+export const productPayloadSchema = z.object({
   brand: z.string().min(1),
   name: z.string().min(1),
   description: z.string().min(1),
-  price: z.coerce.number().positive(),
+  price: z.number().positive(),
   category: z.string().min(1),
-  image_url: z.string().min(1),
-  sizes: z.string().optional(),
-  colors: z.string().optional(),
-  gallery_urls: z.string().optional(),
-  is_featured: z.coerce.boolean().optional(),
-  is_bestseller: z.coerce.boolean().optional(),
+  image_url: z.string().min(1).refine((s) => /^https?:\/\//i.test(s), "URL da imagem inválida"),
+  gallery_urls: z.array(z.string()).default([]),
+  tags: z.array(z.string().min(1)).default([]),
+  sizes: z.array(z.string()).default([]),
+  colors: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        hex: z.string().min(1),
+      })
+    )
+    .default([]),
+  is_featured: z.boolean().default(false),
+  is_bestseller: z.boolean().default(false),
 });
 
-function splitComma(s: string | undefined): string[] {
-  if (!s?.trim()) return [];
-  return s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-
-function parseColorTokens(s: string | undefined): string[] {
-  return splitComma(s).map((t) => {
-    if (t.includes("|")) return t;
-    return `${t}|#737373`;
-  });
-}
+export type ProductPayload = z.infer<typeof productPayloadSchema>;
 
 async function requireAdmin() {
   const user = await getSessionUser();
@@ -40,57 +51,135 @@ async function requireAdmin() {
   if (profile?.role !== "ADMIN") throw new Error("UNAUTHORIZED");
 }
 
-export async function createProduct(_: unknown, formData: FormData) {
-  await requireAdmin();
+function colorsToDb(colors: ProductPayload["colors"]): string[] {
+  return colors.map((c) => `${c.name.trim()}|${normalizeHex(c.hex)}`);
+}
 
-  const featuredRaw = formData.get("is_featured");
-  const bestsellerRaw = formData.get("is_bestseller");
+function galleryFromPayload(urls: string[], main: string): string[] {
+  return urls.map((u) => u.trim()).filter((u) => u.startsWith("http") && u !== main);
+}
 
-  const parsed = productSchema.safeParse({
-    brand: formData.get("brand"),
-    name: formData.get("name"),
-    description: formData.get("description"),
-    price: formData.get("price"),
-    category: formData.get("category"),
-    image_url: formData.get("image_url"),
-    sizes: formData.get("sizes") ?? undefined,
-    colors: formData.get("colors") ?? undefined,
-    gallery_urls: formData.get("gallery_urls") ?? undefined,
-    is_featured: featuredRaw === "on" || featuredRaw === "true",
-    is_bestseller: bestsellerRaw === "on" || bestsellerRaw === "true",
-  });
-
-  if (!parsed.success) {
-    return { ok: false as const, error: "Confira os campos." };
+export async function uploadProductImage(formData: FormData): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { ok: false, error: "Não autorizado." };
   }
 
-  const gallery = splitComma(parsed.data.gallery_urls).filter((u) => u.startsWith("http"));
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Selecione um arquivo de imagem." };
+  }
+
+  const supabase = await createClient();
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  const safeExt = ext && /^[a-z0-9]+$/.test(ext) ? ext : "jpg";
+  const path = `products/${Date.now()}-${crypto.randomUUID()}.${safeExt}`;
+
+  const { error } = await supabase.storage.from("product-images").upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: false,
+  });
+
+  if (error) {
+    console.error("[admin] uploadProductImage", error.message);
+    return { ok: false, error: error.message };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("product-images").getPublicUrl(path);
+  return { ok: true, url: publicUrl };
+}
+
+export async function createProductPayload(
+  payload: unknown
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { ok: false, error: "Não autorizado." };
+  }
+
+  const parsed = productPayloadSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { ok: false, error: "Confira os campos obrigatórios." };
+  }
+
+  const p = parsed.data;
+  const gallery = galleryFromPayload(p.gallery_urls, p.image_url);
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .insert({
-      brand: parsed.data.brand,
-      name: parsed.data.name,
-      description: parsed.data.description,
-      price: parsed.data.price,
-      category: parsed.data.category,
-      image_url: parsed.data.image_url,
+      brand: p.brand,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      category: p.category,
+      image_url: p.image_url,
       gallery_urls: gallery,
-      sizes: splitComma(parsed.data.sizes),
-      colors: parseColorTokens(parsed.data.colors),
-      is_featured: parsed.data.is_featured ?? false,
-      is_bestseller: parsed.data.is_bestseller ?? false,
+      tags: p.tags,
+      sizes: p.sizes,
+      colors: colorsToDb(p.colors),
+      is_featured: p.is_featured,
+      is_bestseller: p.is_bestseller,
     })
     .select("id")
     .single();
 
   if (error) {
-    console.error("[admin] createProduct", error.message);
-    return { ok: false as const, error: "Não foi possível salvar." };
+    console.error("[admin] createProductPayload", error.message);
+    return { ok: false, error: "Não foi possível salvar o produto." };
   }
 
-  return { ok: true as const, id: data.id as string };
+  return { ok: true, id: data.id as string };
+}
+
+export async function updateProductPayload(
+  id: string,
+  payload: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { ok: false, error: "Não autorizado." };
+  }
+
+  const parsed = productPayloadSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { ok: false, error: "Confira os campos obrigatórios." };
+  }
+
+  const p = parsed.data;
+  const gallery = galleryFromPayload(p.gallery_urls, p.image_url);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("products")
+    .update({
+      brand: p.brand,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      category: p.category,
+      image_url: p.image_url,
+      gallery_urls: gallery,
+      tags: p.tags,
+      sizes: p.sizes,
+      colors: colorsToDb(p.colors),
+      is_featured: p.is_featured,
+      is_bestseller: p.is_bestseller,
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("[admin] updateProductPayload", error.message);
+    return { ok: false, error: "Não foi possível atualizar o produto." };
+  }
+
+  return { ok: true };
 }
 
 export async function deleteProduct(id: string) {
@@ -98,56 +187,4 @@ export async function deleteProduct(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) throw new Error(error.message);
-}
-
-export async function updateProduct(id: string, _: unknown, formData: FormData) {
-  await requireAdmin();
-
-  const featuredRaw = formData.get("is_featured");
-  const bestsellerRaw = formData.get("is_bestseller");
-
-  const parsed = productSchema.safeParse({
-    brand: formData.get("brand"),
-    name: formData.get("name"),
-    description: formData.get("description"),
-    price: formData.get("price"),
-    category: formData.get("category"),
-    image_url: formData.get("image_url"),
-    sizes: formData.get("sizes") ?? undefined,
-    colors: formData.get("colors") ?? undefined,
-    gallery_urls: formData.get("gallery_urls") ?? undefined,
-    is_featured: featuredRaw === "on" || featuredRaw === "true",
-    is_bestseller: bestsellerRaw === "on" || bestsellerRaw === "true",
-  });
-
-  if (!parsed.success) {
-    return { ok: false as const, error: "Confira os campos." };
-  }
-
-  const gallery = splitComma(parsed.data.gallery_urls).filter((u) => u.startsWith("http"));
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("products")
-    .update({
-      brand: parsed.data.brand,
-      name: parsed.data.name,
-      description: parsed.data.description,
-      price: parsed.data.price,
-      category: parsed.data.category,
-      image_url: parsed.data.image_url,
-      gallery_urls: gallery,
-      sizes: splitComma(parsed.data.sizes),
-      colors: parseColorTokens(parsed.data.colors),
-      is_featured: parsed.data.is_featured ?? false,
-      is_bestseller: parsed.data.is_bestseller ?? false,
-    })
-    .eq("id", id);
-
-  if (error) {
-    console.error("[admin] updateProduct", error.message);
-    return { ok: false as const, error: "Não foi possível atualizar." };
-  }
-
-  return { ok: true as const };
 }

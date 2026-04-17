@@ -14,6 +14,7 @@ export type ProductRow = {
   brand: string;
   sizes: string[] | null;
   colors: string[] | null;
+  tags: string[] | null;
   is_featured: boolean | null;
   is_bestseller: boolean | null;
   created_at: string;
@@ -52,6 +53,7 @@ export function mapRow(row: ProductRow): Product {
     colors: mapColors(row.colors),
     category: row.category,
     brand: row.brand,
+    tags: row.tags?.filter(Boolean) ?? [],
     isFeatured: row.is_featured ?? false,
     isBestseller: row.is_bestseller ?? false,
   };
@@ -139,3 +141,4 @@ export async function getDistinctBrands(): Promise<string[]> {
   const products = await getAllProducts();
   return Array.from(new Set(products.map((p) => p.brand))).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
+

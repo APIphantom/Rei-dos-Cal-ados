@@ -81,6 +81,18 @@ export function ProductDetail({ product, related }: { product: Product; related:
               <div>
                 <p className="typo-label">{product.brand}</p>
                 <h1 className="typo-h2 mt-2">{product.name}</h1>
+                {product.tags.length > 0 && (
+                  <ul className="mt-3 flex flex-wrap gap-2" aria-label="Etiquetas">
+                    {product.tags.map((t) => (
+                      <li
+                        key={t}
+                        className="rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                      >
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <p className="typo-body-muted mt-4">{product.description}</p>
               </div>
 

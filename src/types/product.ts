@@ -14,6 +14,8 @@ export type Product = {
   colors: ProductColor[];
   category: string;
   brand: string;
+  /** Etiquetas de vitrine (ex.: Esportivo, Promoção) */
+  tags: string[];
   isFeatured: boolean;
   isBestseller: boolean;
 };

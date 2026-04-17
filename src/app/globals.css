@@ -112,6 +112,19 @@
   .typo-price-lg {
     @apply font-heading text-xl font-bold text-primary;
   }
+
+  /**
+   * SVGs monocromáticos (Simple Icons / Kenner) → tom do primary (#F59E0B).
+   */
+  .brand-logo-orange {
+    filter: brightness(0) saturate(100%) invert(58%) sepia(92%) saturate(650%) hue-rotate(5deg) brightness(1.05)
+      contrast(1.02);
+  }
+
+  .group:hover .brand-logo-orange {
+    filter: brightness(0) saturate(100%) invert(58%) sepia(100%) saturate(750%) hue-rotate(5deg) brightness(1.12)
+      contrast(1.05) drop-shadow(0 0 18px hsl(38 92% 50% / 0.35));
+  }
 }
 
 ::-webkit-scrollbar {

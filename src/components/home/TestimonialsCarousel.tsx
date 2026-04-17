@@ -1,7 +1,6 @@
 "use client";
 
 import useEmblaCarousel from "embla-carousel-react";
-import { Quote } from "lucide-react";
 import { Container } from "@/components/ui/container";
 
 const testimonials = [
@@ -24,26 +23,27 @@ const testimonials = [
 ];
 
 export function TestimonialsCarousel() {
-  const [emblaRef] = useEmblaCarousel({ align: "start", loop: true, slidesToScroll: 1 });
+  const [emblaRef] = useEmblaCarousel({ align: "start", loop: true, slidesToScroll: 1, containScroll: "trimSnaps" });
 
   return (
-    <section id="depoimentos" className="py-14 md:py-20">
+    <section id="depoimentos" className="border-b border-border/40 py-12 md:py-16">
       <Container>
-        <div className="mb-8">
-          <p className="typo-label">Depoimentos</p>
-          <h2 className="typo-h2 mt-2">Quem compra, recomenda</h2>
+        <div className="mb-8 max-w-sm">
+          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-primary">Depoimentos</p>
+          <h2 className="mt-2 font-heading text-2xl font-bold tracking-tight text-foreground md:text-[1.65rem]">
+            Quem compra, recomenda
+          </h2>
         </div>
 
         <div className="overflow-hidden" ref={emblaRef}>
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {testimonials.map((t) => (
               <div
                 key={t.name}
-                className="min-w-[min(100%,340px)] shrink-0 rounded-3xl border border-border bg-card/60 p-6 md:min-w-[380px]"
+                className="min-w-[min(100%,300px)] shrink-0 rounded-2xl border border-border/40 bg-card/[0.35] px-5 py-6 md:min-w-[320px]"
               >
-                <Quote className="h-8 w-8 text-primary/80" />
-                <p className="typo-small mt-4 leading-relaxed">“{t.text}”</p>
-                <p className="typo-label mt-6 text-foreground">{t.name}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">“{t.text}”</p>
+                <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.2em] text-foreground">{t.name}</p>
               </div>
             ))}
           </div>
