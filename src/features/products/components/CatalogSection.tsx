@@ -12,15 +12,25 @@ export function CatalogSection({ products }: { products: Product[] }) {
   const sp = useSearchParams();
 
   const selectedBrand = sp.get("brand") ?? "";
+  const q = sp.get("q") ?? "";
 
   const filtered = useMemo(() => {
     let list = products.slice();
     if (selectedBrand) {
       list = list.filter((p) => brandsMatch(p.brand, selectedBrand));
     }
+    const qt = q.trim().toLowerCase();
+    if (qt) {
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(qt) ||
+          p.brand.toLowerCase().includes(qt) ||
+          p.category.toLowerCase().includes(qt)
+      );
+    }
     list = list.sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0));
     return list;
-  }, [products, selectedBrand]);
+  }, [products, selectedBrand, q]);
 
   function setBrandFilter(value: string) {
     const next = new URLSearchParams(sp.toString());
@@ -31,7 +41,7 @@ export function CatalogSection({ products }: { products: Product[] }) {
   }
 
   function clearFilters() {
-    router.push(`${pathname}#catalogo`);
+    router.push("/#catalogo");
   }
 
   return (

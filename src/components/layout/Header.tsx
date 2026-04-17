@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crown, LogIn, LogOut, Menu, Shield, User, ShoppingBag, X } from "lucide-react";
 import { Container } from "@/components/ui/container";
+import { HeaderSearch } from "@/components/layout/HeaderSearch";
 import { cn } from "@/lib/utils";
 import { useCartStore, useCartTotals } from "@/features/cart/store";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -14,11 +15,11 @@ const navLinks = [
   { label: "Catálogo", href: "/#catalogo" },
 ];
 
-const btnBase =
-  "inline-flex items-center justify-center gap-2 rounded-full border border-border/60 bg-background/40 px-4 text-[11px] font-bold uppercase tracking-[0.18em] text-foreground backdrop-blur-sm transition-colors hover:border-primary/50 hover:bg-primary/10";
+const btnGhost =
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-border/50 bg-transparent px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10";
 
-const iconBtn =
-  "relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/40 text-foreground backdrop-blur-sm transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary";
+const iconCircle =
+  "relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/50 text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary";
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -30,27 +31,27 @@ export function Header() {
   const isAuthed = !!user;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass">
-      <Container className="flex h-16 items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur-md">
+      <Container className="grid h-14 grid-cols-[auto_1fr_auto] items-center gap-2 md:gap-4">
+        <div className="flex min-w-0 items-center gap-2 md:gap-3">
           <button
             type="button"
-            className={cn(iconBtn, "md:hidden")}
+            className={cn(iconCircle, "md:hidden")}
             onClick={() => setMenuOpen((v) => !v)}
             aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
           >
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
 
-          <Link href="/" className="flex min-w-0 items-center gap-2 text-foreground">
-            <Crown className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-            <span className="truncate font-heading text-sm font-bold tracking-tight sm:text-base">
+          <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 text-foreground">
+            <Crown className="h-4 w-4 shrink-0 text-primary md:h-5 md:w-5" aria-hidden />
+            <span className="font-heading text-xs font-bold tracking-tight sm:text-sm">
               Rei Dos <span className="text-primary">Calçados</span>
             </span>
           </Link>
         </div>
 
-        <nav className="font-heading hidden items-center gap-8 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex">
+        <nav className="font-heading hidden items-center justify-center gap-8 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground md:flex">
           {links.map((l) => (
             <Link key={l.label} href={l.href} className="transition-colors hover:text-primary">
               {l.label}
@@ -58,69 +59,74 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {loading ? (
-            <div className="hidden h-10 w-[200px] animate-pulse rounded-full border border-border/50 bg-muted/30 md:block" />
-          ) : !isAuthed ? (
-            <div className="hidden items-center gap-2 md:flex">
-              <Link href="/login" className={cn(btnBase, "h-10")}>
-                <LogIn className="h-4 w-4 text-primary" aria-hidden />
-                Login
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-[11px] font-bold uppercase tracking-[0.18em] text-primary-foreground transition-opacity hover:opacity-90"
-              >
-                Cadastre-se
-              </Link>
-            </div>
-          ) : (
-            <>
-              <div className="hidden items-center gap-2 md:flex">
-                <Link href="/perfil" className={cn(btnBase, "h-10")}>
-                  <User className="h-4 w-4 text-primary" aria-hidden />
-                  Perfil
-                </Link>
-                {role === "ADMIN" && (
-                  <Link
-                    href="/admin"
-                    className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4 text-[11px] font-bold uppercase tracking-[0.18em] text-primary-foreground transition-opacity hover:opacity-90"
-                  >
-                    <Shield className="h-4 w-4" aria-hidden />
-                    Admin
-                  </Link>
-                )}
-                <button
-                  type="button"
-                  onClick={() => void signOut()}
-                  className={cn(btnBase, "h-10 text-muted-foreground hover:text-primary")}
-                >
-                  <LogOut className="h-4 w-4" aria-hidden />
-                  Sair
-                </button>
-              </div>
-              <Link
-                href="/perfil"
-                className={cn(iconBtn, "md:hidden")}
-                aria-label="Ver perfil"
-              >
-                <User className="h-5 w-5 text-primary" />
-              </Link>
-            </>
-          )}
+        <div className="flex min-w-0 items-center justify-end gap-2 md:gap-3">
+          <Suspense fallback={<div className="hidden h-9 w-[200px] md:block" />}>
+            <HeaderSearch />
+          </Suspense>
 
-          <button type="button" onClick={openCart} className={iconBtn} aria-label="Abrir carrinho">
-            <ShoppingBag className="h-5 w-5" />
-            {itemCount > 0 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground"
-              >
-                {itemCount}
-              </motion.span>
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {loading ? (
+              <div className="hidden h-9 w-[160px] animate-pulse rounded-full border border-border/40 bg-muted/20 md:block" />
+            ) : !isAuthed ? (
+              <>
+                <Link href="/login" className={cn(btnGhost, "hidden sm:inline-flex")}>
+                  <LogIn className="h-3.5 w-3.5 text-primary" />
+                  Login
+                </Link>
+                <Link href="/login" className={cn(iconCircle, "sm:hidden")} aria-label="Login">
+                  <LogIn className="h-4 w-4 text-primary" />
+                </Link>
+                <Link
+                  href="/register"
+                  className="hidden h-9 items-center justify-center rounded-full bg-primary px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-foreground transition-opacity hover:opacity-90 sm:inline-flex"
+                >
+                  Cadastre-se
+                </Link>
+              </>
+            ) : (
+              <>
+                <div className="hidden items-center gap-2 md:flex">
+                  <Link href="/perfil" className={btnGhost}>
+                    <User className="h-3.5 w-3.5 text-primary" />
+                    Perfil
+                  </Link>
+                  {role === "ADMIN" && (
+                    <Link
+                      href="/admin"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      <Shield className="h-3.5 w-3.5" />
+                      Admin
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void signOut()}
+                    className={cn(btnGhost, "text-muted-foreground hover:text-primary")}
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sair
+                  </button>
+                </div>
+                <Link href="/perfil" className={cn(iconCircle, "md:hidden")} aria-label="Perfil">
+                  <User className="h-4 w-4 text-primary" />
+                </Link>
+              </>
             )}
-          </button>
+
+            <button type="button" onClick={openCart} className={iconCircle} aria-label="Abrir carrinho">
+              <ShoppingBag className="h-4 w-4" />
+              {itemCount > 0 && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-0.5 -right-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-primary-foreground"
+                >
+                  {itemCount}
+                </motion.span>
+              )}
+            </button>
+          </div>
         </div>
       </Container>
 
@@ -133,7 +139,7 @@ export function Header() {
             className="overflow-hidden border-t border-border/40 md:hidden"
           >
             <Container className="py-4">
-              <div className="font-heading flex flex-col gap-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <div className="font-heading flex flex-col gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                 {links.map((l) => (
                   <Link
                     key={l.label}
@@ -145,22 +151,22 @@ export function Header() {
                   </Link>
                 ))}
 
-                <div className="mt-2 grid gap-2">
+                <div className="mt-2 grid gap-2 border-t border-border/40 pt-4">
                   {loading ? (
-                    <div className="h-10 w-full animate-pulse rounded-full border border-border/50 bg-muted/30" />
+                    <div className="h-9 w-full animate-pulse rounded-full border border-border/40 bg-muted/20" />
                   ) : !isAuthed ? (
                     <>
                       <Link
                         href="/login"
                         onClick={() => setMenuOpen(false)}
-                        className="inline-flex h-10 items-center justify-center rounded-full border border-border/60 bg-background/40 px-4 text-[11px] font-bold uppercase tracking-[0.18em] text-foreground"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-border/50 px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-foreground"
                       >
                         Login
                       </Link>
                       <Link
                         href="/register"
                         onClick={() => setMenuOpen(false)}
-                        className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-4 text-[11px] font-bold uppercase tracking-[0.18em] text-primary-foreground"
+                        className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-foreground"
                       >
                         Cadastre-se
                       </Link>
@@ -170,7 +176,7 @@ export function Header() {
                       <Link
                         href="/perfil"
                         onClick={() => setMenuOpen(false)}
-                        className="inline-flex h-10 items-center justify-center rounded-full border border-border/60 bg-background/40 px-4 text-[11px] font-bold uppercase tracking-[0.18em] text-foreground"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-border/50 px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-foreground"
                       >
                         Perfil
                       </Link>
@@ -178,7 +184,7 @@ export function Header() {
                         <Link
                           href="/admin"
                           onClick={() => setMenuOpen(false)}
-                          className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-4 text-[11px] font-bold uppercase tracking-[0.18em] text-primary-foreground"
+                          className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-foreground"
                         >
                           Admin
                         </Link>
@@ -189,7 +195,7 @@ export function Header() {
                           void signOut();
                           setMenuOpen(false);
                         }}
-                        className="inline-flex h-10 items-center justify-center rounded-full border border-border/60 bg-background/40 px-4 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-primary"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-border/50 px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-primary"
                       >
                         Sair
                       </button>

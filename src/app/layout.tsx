@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Header />
           <CartDrawer />
           <WhatsAppFloating />
-          <main className="pt-16">{children}</main>
+          <main className="pt-14">{children}</main>
           <Footer />
         </Providers>
       </body>

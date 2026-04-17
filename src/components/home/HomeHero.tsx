@@ -1,14 +1,49 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
+import { getHeroSettings } from "@/lib/site-settings";
 
-export function HomeHero() {
+export async function HomeHero() {
+  const hero = await getHeroSettings();
+
   return (
     <section className="relative min-h-[min(72vh,560px)] border-b border-border/40 md:min-h-[min(78vh,640px)]">
+      {hero.type === "image" && hero.url && (
+        <div className="absolute inset-0">
+          <Image
+            src={hero.url}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            unoptimized
+          />
+        </div>
+      )}
+
+      {hero.type === "video" && hero.url && (
+        <video
+          className="absolute inset-0 h-full w-full object-cover"
+          src={hero.url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden
+        />
+      )}
+
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_50%_-20%,hsl(38_92%_50%_/_0.14),transparent_55%)]"
         aria-hidden
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/98 to-background" aria-hidden />
+      <div
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${
+          hero.type !== "none" ? "from-background/85 via-background/70 to-background" : "from-background via-background/98 to-background"
+        }`}
+        aria-hidden
+      />
 
       <Container className="relative flex min-h-[min(72vh,560px)] flex-col justify-end pb-14 pt-28 md:min-h-[min(78vh,640px)] md:pb-20 md:pt-32">
         <div className="max-w-xl">

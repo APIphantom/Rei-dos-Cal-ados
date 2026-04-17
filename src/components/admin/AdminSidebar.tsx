@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, Store } from "lucide-react";
+import { LayoutDashboard, Package, Settings, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/admin", label: "Painel", icon: LayoutDashboard },
   { href: "/admin/products", label: "Produtos", icon: Package },
+  { href: "/admin/settings", label: "Configurações", icon: Settings },
 ];
+
+function navActive(pathname: string, href: string) {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -21,7 +27,7 @@ export function AdminSidebar() {
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {items.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/admin" && pathname.startsWith(href));
+          const active = navActive(pathname, href);
           return (
             <Link
               key={href}
@@ -57,7 +63,7 @@ export function AdminMobileNav() {
   return (
     <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden" aria-label="Admin">
       {items.map(({ href, label }) => {
-        const active = pathname === href || (href !== "/admin" && pathname.startsWith(href));
+        const active = navActive(pathname, href);
         return (
           <Link
             key={href}

@@ -71,7 +71,14 @@ export default function RegisterPage() {
           <p className="mt-3 text-sm text-muted-foreground">Leva menos de 1 minuto para começar.</p>
         </div>
 
-        <form action={onSubmit} className="mt-7 space-y-4">
+        <form
+          className="mt-7 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            void onSubmit(fd);
+          }}
+        >
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
               Nome
