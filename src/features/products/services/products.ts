@@ -17,6 +17,7 @@ export type ProductRow = {
   tags: string[] | null;
   is_featured: boolean | null;
   is_bestseller: boolean | null;
+  stock_quantity?: number | null;
   created_at: string;
 };
 
@@ -56,6 +57,7 @@ export function mapRow(row: ProductRow): Product {
     tags: row.tags?.filter(Boolean) ?? [],
     isFeatured: row.is_featured ?? false,
     isBestseller: row.is_bestseller ?? false,
+    stockQuantity: Math.max(0, Number(row.stock_quantity ?? 0)),
   };
 }
 

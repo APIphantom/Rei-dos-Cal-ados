@@ -24,7 +24,10 @@ export function HeaderSearch() {
   );
 
   return (
-    <form onSubmit={onSubmit} className="hidden w-full max-w-[200px] md:block lg:max-w-[260px]">
+    <form
+      onSubmit={onSubmit}
+      className="hidden min-w-0 w-full max-w-[200px] md:block md:max-w-[min(200px,calc(100vw-22rem))] lg:max-w-[260px]"
+    >
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -32,7 +35,8 @@ export function HeaderSearch() {
           defaultValue={q}
           placeholder="Buscar…"
           autoComplete="off"
-          className="h-9 w-full rounded-full border border-border/50 bg-muted/15 py-2 pl-9 pr-3 text-[11px] text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary/40 focus:ring-1 focus:ring-primary/20"
+          suppressHydrationWarning
+          className="h-9 min-w-0 w-full rounded-full border border-border/50 bg-muted/15 py-2 pl-9 pr-3 text-[11px] text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary/40 focus:ring-1 focus:ring-primary/20"
         />
       </div>
     </form>

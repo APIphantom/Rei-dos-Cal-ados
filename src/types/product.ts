@@ -18,4 +18,6 @@ export type Product = {
   tags: string[];
   isFeatured: boolean;
   isBestseller: boolean;
+  /** Quantidade em estoque (Supabase `stock_quantity`) */
+  stockQuantity: number;
 };

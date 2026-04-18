@@ -25,6 +25,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     colors: product.colors,
     is_featured: product.isFeatured,
     is_bestseller: product.isBestseller,
+    stock_quantity: product.stockQuantity,
   };
 
   return (

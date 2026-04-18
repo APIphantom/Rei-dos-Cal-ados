@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, Settings, Store } from "lucide-react";
+import { LayoutDashboard, Package, Palette, Settings, ShoppingBag, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { href: "/admin", label: "Painel", icon: LayoutDashboard },
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/orders", label: "Pedidos", icon: ShoppingBag },
+  { href: "/admin/customize", label: "Customização", icon: Palette },
   { href: "/admin/products", label: "Produtos", icon: Package },
   { href: "/admin/settings", label: "Configurações", icon: Settings },
 ];

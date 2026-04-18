@@ -1,11 +1,12 @@
 "use client";
 
 import { MessageCircle } from "lucide-react";
+import { useStorePublicSettings } from "@/contexts/store-public-context";
+import { buildWaMeUrl } from "@/lib/whatsapp";
 
 export function WhatsAppFloating() {
-  const url = `https://wa.me/5511999999999?text=${encodeURIComponent(
-    "Olá, gostaria de saber mais sobre os produtos!"
-  )}`;
+  const { whatsappE164 } = useStorePublicSettings();
+  const url = buildWaMeUrl(whatsappE164, "Olá, gostaria de saber mais sobre os produtos!");
 
   return (
     <a
@@ -19,4 +20,3 @@ export function WhatsAppFloating() {
     </a>
   );
 }
-

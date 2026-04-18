@@ -8,17 +8,13 @@ import type { Product } from "@/types/product";
 import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { formatBRL } from "@/lib/money";
+import { useStorePublicSettings } from "@/contexts/store-public-context";
 import { buildProductWhatsAppUrl } from "@/lib/whatsapp";
 import { useCartStore } from "@/features/cart/store";
 import { ProductCard } from "./ProductCard";
 
-function mockStockUnits(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i)) % 19;
-  return 4 + h;
-}
-
 export function ProductDetail({ product, related }: { product: Product; related: Product[] }) {
+  const { whatsappE164 } = useStorePublicSettings();
   const [activeImage, setActiveImage] = useState(product.images[0] ?? product.imageUrl);
   const [size, setSize] = useState(product.sizes[0] ?? "");
   const [color, setColor] = useState(product.colors[0]?.name ?? "");
@@ -27,10 +23,10 @@ export function ProductDetail({ product, related }: { product: Product; related:
 
   const whatsappUrl = useMemo(() => {
     if (!size || !color) return "";
-    return buildProductWhatsAppUrl({ product, size, color });
-  }, [product, size, color]);
+    return buildProductWhatsAppUrl({ product, size, color, whatsappE164 });
+  }, [product, size, color, whatsappE164]);
 
-  const stock = mockStockUnits(product.id);
+  const stock = product.stockQuantity ?? 0;
 
   return (
     <>
@@ -104,7 +100,7 @@ export function ProductDetail({ product, related }: { product: Product; related:
               <div className="typo-small flex flex-wrap items-center gap-3">
                 <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
                   <Package className="h-3.5 w-3.5 text-primary" />
-                  Estoque: <strong className="text-foreground">{stock} un.</strong> (estimativa)
+                  Estoque: <strong className="text-foreground">{stock} un.</strong>
                 </span>
               </div>
 

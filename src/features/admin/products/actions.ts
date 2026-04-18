@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { mapStorageUploadError } from "@/lib/storage-errors";
 import { getSessionUser, getProfileForUser } from "@/lib/auth/server";
 
 function normalizeHex(raw: string): string {
@@ -40,6 +41,7 @@ export const productPayloadSchema = z.object({
     .default([]),
   is_featured: z.boolean().default(false),
   is_bestseller: z.boolean().default(false),
+  stock_quantity: z.number().int().min(0).default(0),
 });
 
 export type ProductPayload = z.infer<typeof productPayloadSchema>;
@@ -83,7 +85,7 @@ export async function uploadProductImage(formData: FormData): Promise<{ ok: true
 
   if (error) {
     console.error("[admin] uploadProductImage", error.message);
-    return { ok: false, error: error.message };
+    return { ok: false, error: mapStorageUploadError(error.message) };
   }
 
   const {
@@ -125,6 +127,7 @@ export async function createProductPayload(
       colors: colorsToDb(p.colors),
       is_featured: p.is_featured,
       is_bestseller: p.is_bestseller,
+      stock_quantity: p.stock_quantity,
     })
     .select("id")
     .single();
@@ -171,6 +174,7 @@ export async function updateProductPayload(
       colors: colorsToDb(p.colors),
       is_featured: p.is_featured,
       is_bestseller: p.is_bestseller,
+      stock_quantity: p.stock_quantity,
     })
     .eq("id", id);
 

@@ -4,17 +4,25 @@ import { Container } from "@/components/ui/container";
 import { BrandsCarousel } from "@/components/home/BrandsCarousel";
 import { FeaturedProduct } from "@/components/home/FeaturedProduct";
 import { HomeHero } from "@/components/home/HomeHero";
+import { PromoBannerClient } from "@/components/home/PromoBannerClient";
 import { TestimonialsCarousel } from "@/components/home/TestimonialsCarousel";
 import { CatalogSection } from "@/features/products/components/CatalogSection";
 import { STORE_BRANDS } from "@/config/store-brands";
 import { getAllProducts, getFeaturedProduct } from "@/features/products/services/products";
+import { getTestimonials } from "@/lib/testimonials";
 
 export default async function HomePage() {
-  const [products, featured] = await Promise.all([getAllProducts(), getFeaturedProduct()]);
+  const [products, featured, testimonials] = await Promise.all([
+    getAllProducts(),
+    getFeaturedProduct(),
+    getTestimonials(),
+  ]);
 
   return (
     <>
       <HomeHero />
+
+      <PromoBannerClient />
 
       <BrandsCarousel brands={STORE_BRANDS} />
 
@@ -25,11 +33,8 @@ export default async function HomePage() {
           {products.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/50 bg-card/[0.2] p-10 text-center">
               <p className="text-sm text-muted-foreground">
-                Nenhum produto carregado. Configure{" "}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">NEXT_PUBLIC_SUPABASE_URL</code> e{" "}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> e
-                insira registros na tabela <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">products</code>{" "}
-                (veja <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">supabase/migrations</code>).
+                Nenhum produto no catálogo. Conecte o projeto ao Supabase e rode as migrações; em seguida cadastre itens em{" "}
+                <span className="text-foreground">Admin → Produtos</span>.
               </p>
             </div>
           ) : (
@@ -46,7 +51,7 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      <TestimonialsCarousel />
+      <TestimonialsCarousel items={testimonials} />
 
       <section className="py-10 md:py-12">
         <Container className="flex flex-col items-center justify-between gap-4 border-t border-border/40 pt-10 text-center md:flex-row md:text-left">

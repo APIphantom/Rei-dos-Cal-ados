@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Crown, Facebook, Instagram, Lock, ShieldCheck, Truck } from "lucide-react";
 import { Container } from "@/components/ui/container";
+import type { StorePublicSettings } from "@/lib/store-public-settings";
 
 const nav = [
   { label: "Home", href: "/" },
@@ -15,7 +16,13 @@ const categories = [
   { label: "Botas", href: "/?cat=Botas" },
 ];
 
-export function Footer() {
+export function Footer({ store }: { store: StorePublicSettings }) {
+  const ig = store.instagramUrl?.trim();
+  const fb = store.facebookUrl?.trim();
+  const email = store.contactEmail?.trim();
+  const phone = store.contactPhone?.trim();
+  const city = store.contactCity?.trim();
+
   return (
     <footer className="mt-20 border-t border-border">
       <Container className="py-12">
@@ -32,16 +39,18 @@ export function Footer() {
             </p>
             <div className="mt-5 flex gap-3">
               <a
-                href="#"
+                href={ig || "#"}
                 className="grid h-10 w-10 place-items-center rounded-full border border-border transition-colors hover:border-primary hover:text-primary"
                 aria-label="Instagram"
+                {...(ig ? { target: "_blank", rel: "noopener noreferrer" } : { "aria-disabled": true })}
               >
                 <Instagram className="h-4 w-4" />
               </a>
               <a
-                href="#"
+                href={fb || "#"}
                 className="grid h-10 w-10 place-items-center rounded-full border border-border transition-colors hover:border-primary hover:text-primary"
                 aria-label="Facebook"
+                {...(fb ? { target: "_blank", rel: "noopener noreferrer" } : { "aria-disabled": true })}
               >
                 <Facebook className="h-4 w-4" />
               </a>
@@ -77,9 +86,14 @@ export function Footer() {
           <div>
             <p className="typo-label mb-4 text-foreground">Contato</p>
             <div className="font-body space-y-2 text-sm text-muted-foreground">
-              <p>contato@reidoscalcados.com</p>
-              <p>+55 (11) 99999-9999</p>
-              <p>São Paulo, SP</p>
+              {email ? <p>{email}</p> : <p className="text-zinc-600">Email (configure no admin)</p>}
+              {phone ? <p>{phone}</p> : null}
+              {city ? <p>{city}</p> : null}
+              {!email && !phone && !city ? (
+                <p className="text-xs text-zinc-600">
+                  Defina e-mail e telefone em <span className="text-foreground">Admin → Configurações</span>.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -108,4 +122,3 @@ export function Footer() {
     </footer>
   );
 }
-

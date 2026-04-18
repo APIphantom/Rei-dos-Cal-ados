@@ -43,17 +43,6 @@ create policy "orders_admin_update"
     exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'ADMIN')
   );
 
--- Dados de exemplo (opcional — remova se preferir tabela vazia)
-insert into public.orders (customer_name, total, status)
-select v.customer_name, v.total, v.status
-from (
-  values
-    ('Mariana S.', 349.90, 'Pago'),
-    ('Rafael L.', 289.90, 'Separando'),
-    ('Camila A.', 159.90, 'Enviado')
-) as v(customer_name, total, status)
-where not exists (select 1 from public.orders limit 1);
-
 -- Storage: bucket público para leitura
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)

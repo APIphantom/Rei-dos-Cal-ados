@@ -1,24 +1,25 @@
 /**
  * Marcas oficiais da loja (filtro do catálogo + vitrine).
- * Logos: Simple Icons (CDN) + Kenner em /public/brands/kenner.svg
+ * Logos: Simple Icons (CDN) + locais em /public/brands/ (Kenner, Converse, Vans, Crocs)
  */
 export type StoreBrand = {
   name: string;
   logoUrl: string;
 };
 
-/** Simple Icons (SVG monocromático, fundo branco no carrossel). */
-const SIMPLE = "https://unpkg.com/simple-icons@11.11.0/icons";
+/** Simple Icons (SVG monocromático) — jsDelivr costuma ser mais estável que unpkg. */
+const SIMPLE = "https://cdn.jsdelivr.net/npm/simple-icons@11.11.0/icons";
 
 export const STORE_BRANDS: StoreBrand[] = [
   { name: "Nike", logoUrl: `${SIMPLE}/nike.svg` },
   { name: "Adidas", logoUrl: `${SIMPLE}/adidas.svg` },
-  { name: "Vans", logoUrl: `${SIMPLE}/vans.svg` },
+  { name: "Vans", logoUrl: "/brands/vans.svg" },
   { name: "Puma", logoUrl: `${SIMPLE}/puma.svg` },
-  { name: "Converse", logoUrl: `${SIMPLE}/converse.svg` },
+  /** Wordmark Converse (SVG local); nome comercial All Star. */
+  { name: "All Star (Chuck Taylor)", logoUrl: "/brands/converse.svg" },
   { name: "New Balance", logoUrl: `${SIMPLE}/newbalance.svg` },
   { name: "Kenner", logoUrl: "/brands/kenner.svg" },
-  { name: "Crocs", logoUrl: `${SIMPLE}/crocs.svg` },
+  { name: "Crocs", logoUrl: "/brands/crocs.svg" },
 ];
 
 export const STORE_BRAND_NAMES = STORE_BRANDS.map((b) => b.name);
@@ -30,7 +31,15 @@ export function normalizeBrandKey(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-/** Compara marcas ignorando maiúsculas e espaços extras. */
+const LEGACY_CONVERSE = normalizeBrandKey("Converse");
+const ALL_STAR = normalizeBrandKey("All Star (Chuck Taylor)");
+
+/** Compara marcas ignorando maiúsculas e espaços extras. Une Converse ↔ All Star. */
 export function brandsMatch(a: string, b: string): boolean {
-  return normalizeBrandKey(a) === normalizeBrandKey(b);
+  const na = normalizeBrandKey(a);
+  const nb = normalizeBrandKey(b);
+  if (na === nb) return true;
+  const pairConverse =
+    (na === LEGACY_CONVERSE || na === ALL_STAR) && (nb === LEGACY_CONVERSE || nb === ALL_STAR);
+  return pairConverse;
 }

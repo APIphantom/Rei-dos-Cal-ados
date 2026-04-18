@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
 import { saveHeroSettings, uploadHeroMedia } from "@/features/admin/site/actions";
@@ -18,26 +18,54 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
 
+  const uploadFile = useCallback(async (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await uploadHeroMedia(fd);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    const isVideo = file.type.startsWith("video/");
+    setType(isVideo ? "video" : "image");
+    setUrl(res.url);
+    toast.success("Arquivo enviado. Clique em Salvar para aplicar.");
+  }, []);
+
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await uploadHeroMedia(fd);
-      if (!res.ok) {
-        toast.error(res.error);
+
+    if (file.type.startsWith("video/")) {
+      if (type !== "video") {
+        toast.error('Altere o tipo para "Vídeo" para enviar um arquivo de vídeo.');
         return;
       }
-      const isVideo = file.type.startsWith("video/");
-      setType(isVideo ? "video" : "image");
-      setUrl(res.url);
-      toast.success("Arquivo enviado. Clique em Salvar para aplicar.");
-    } finally {
-      setUploading(false);
+      setUploading(true);
+      try {
+        await uploadFile(file);
+      } finally {
+        setUploading(false);
+      }
+      return;
     }
+
+    if (file.type.startsWith("image/")) {
+      if (type === "video") {
+        toast.error('Para imagens, selecione o tipo "Imagem" acima.');
+        return;
+      }
+      setUploading(true);
+      try {
+        await uploadFile(file);
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
+    toast.error("Formato de arquivo não suportado.");
   }
 
   function submit() {
@@ -53,13 +81,15 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
     });
   }
 
+  const fileAccept = type === "video" ? "video/*" : type === "image" ? "image/*" : "image/*,video/*";
+
   return (
     <div className="space-y-8 rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-6 md:p-8">
       <div>
         <h2 className="font-heading text-lg font-bold text-white">Mídia do hero (home)</h2>
         <p className="mt-2 text-sm text-zinc-500">
-          Escolha nenhuma mídia (só gradiente), imagem ou vídeo. Pode colar URL ou enviar arquivo para o Supabase
-          Storage.
+          Escolha nenhuma mídia (só gradiente), imagem ou vídeo. Para imagem, envie um arquivo — a página usa a proporção
+          original (sem recorte). Também é possível colar uma URL pública.
         </p>
       </div>
 
@@ -102,7 +132,7 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
           <div>
             <input
               type="file"
-              accept="image/*,video/*"
+              accept={fileAccept}
               className="hidden"
               id="hero-file"
               onChange={onFile}
@@ -110,7 +140,7 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
             <label htmlFor="hero-file">
               <span className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111] px-4 py-2.5 text-sm text-zinc-300 hover:border-[#F59E0B]/50">
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                Enviar arquivo ({type === "video" ? "vídeo" : "imagem"})
+                {type === "video" ? "Enviar vídeo" : "Enviar imagem (com recorte 21:9)"}
               </span>
             </label>
           </div>

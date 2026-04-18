@@ -32,7 +32,7 @@ export function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur-md">
-      <Container className="grid h-14 grid-cols-[auto_1fr_auto] items-center gap-2 md:gap-4">
+      <Container className="grid h-14 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 md:gap-4">
         <div className="flex min-w-0 items-center gap-2 md:gap-3">
           <button
             type="button"
@@ -60,58 +60,62 @@ export function Header() {
         </nav>
 
         <div className="flex min-w-0 items-center justify-end gap-2 md:gap-3">
-          <Suspense fallback={<div className="hidden h-9 w-[200px] md:block" />}>
+          <Suspense fallback={<div className="hidden h-9 min-w-0 w-[min(200px,calc(100vw-22rem))] md:block" />}>
             <HeaderSearch />
           </Suspense>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            {loading ? (
-              <div className="hidden h-9 w-[160px] animate-pulse rounded-full border border-border/40 bg-muted/20 md:block" />
-            ) : !isAuthed ? (
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
+            {!isAuthed ? (
               <>
-                <Link href="/login" className={cn(btnGhost, "hidden sm:inline-flex")}>
+                <Link
+                  href="/login"
+                  className={cn(btnGhost, "hidden sm:inline-flex", loading && "opacity-70")}
+                >
                   <LogIn className="h-3.5 w-3.5 text-primary" />
                   Login
                 </Link>
-                <Link href="/login" className={cn(iconCircle, "sm:hidden")} aria-label="Login">
+                <Link
+                  href="/login"
+                  className={cn(iconCircle, "sm:hidden", loading && "opacity-70")}
+                  aria-label="Login"
+                >
                   <LogIn className="h-4 w-4 text-primary" />
                 </Link>
                 <Link
                   href="/register"
-                  className="hidden h-9 items-center justify-center rounded-full bg-primary px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-foreground transition-opacity hover:opacity-90 sm:inline-flex"
+                  className={cn(
+                    "hidden h-9 items-center justify-center rounded-full bg-primary px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-foreground transition-opacity hover:opacity-90 sm:inline-flex",
+                    loading && "opacity-70"
+                  )}
                 >
                   Cadastre-se
                 </Link>
               </>
             ) : (
-              <>
-                <div className="hidden items-center gap-2 md:flex">
-                  <Link href="/perfil" className={btnGhost}>
-                    <User className="h-3.5 w-3.5 text-primary" />
-                    Perfil
-                  </Link>
-                  {role === "ADMIN" && (
-                    <Link
-                      href="/admin"
-                      className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-foreground transition-opacity hover:opacity-90"
-                    >
-                      <Shield className="h-3.5 w-3.5" />
-                      Admin
-                    </Link>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => void signOut()}
-                    className={cn(btnGhost, "text-muted-foreground hover:text-primary")}
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    Sair
-                  </button>
-                </div>
-                <Link href="/perfil" className={cn(iconCircle, "md:hidden")} aria-label="Perfil">
-                  <User className="h-4 w-4 text-primary" />
+              <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
+                <Link href="/perfil" className={btnGhost} aria-label="Perfil">
+                  <User className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="max-md:sr-only">Perfil</span>
                 </Link>
-              </>
+                {role === "ADMIN" && (
+                  <Link
+                    href="/admin"
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-primary px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary-foreground transition-opacity hover:opacity-90 md:px-3"
+                  >
+                    <Shield className="h-3.5 w-3.5" />
+                    <span className="max-md:sr-only">Admin</span>
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  className={cn(btnGhost, "shrink-0 text-muted-foreground hover:text-primary")}
+                  aria-label="Sair"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="max-md:sr-only">Sair</span>
+                </button>
+              </div>
             )}
 
             <button type="button" onClick={openCart} className={iconCircle} aria-label="Abrir carrinho">
@@ -152,9 +156,7 @@ export function Header() {
                 ))}
 
                 <div className="mt-2 grid gap-2 border-t border-border/40 pt-4">
-                  {loading ? (
-                    <div className="h-9 w-full animate-pulse rounded-full border border-border/40 bg-muted/20" />
-                  ) : !isAuthed ? (
+                  {!isAuthed ? (
                     <>
                       <Link
                         href="/login"

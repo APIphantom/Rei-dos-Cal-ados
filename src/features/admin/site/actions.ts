@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { mapStorageUploadError } from "@/lib/storage-errors";
 import { getSessionUser, getProfileForUser } from "@/lib/auth/server";
 import type { HeroMediaType } from "@/lib/site-settings";
 
@@ -40,19 +41,76 @@ export async function saveHeroSettings(payload: unknown): Promise<{ ok: true } |
   }
 
   const supabase = await createClient();
+  const { data: cur } = await supabase.from("site_settings").select("*").eq("id", "default").maybeSingle();
+
   const { error } = await supabase.from("site_settings").upsert(
     {
+      ...(cur ?? {}),
       id: "default",
       hero_media_type: type === "none" ? "none" : type,
       hero_media_url: type === "none" ? null : url,
       updated_at: new Date().toISOString(),
-    },
+    } as Record<string, unknown>,
     { onConflict: "id" }
   );
 
   if (error) {
     console.error("[admin] saveHeroSettings", error.message);
     return { ok: false, error: "Não foi possível salvar. Rode a migração SQL (site_settings) no Supabase." };
+  }
+
+  return { ok: true };
+}
+
+const contactSchema = z.object({
+  store_whatsapp_e164: z
+    .string()
+    .min(8)
+    .transform((s) => s.replace(/\D/g, ""))
+    .refine((d) => d.length >= 10 && d.length <= 15, "Informe o WhatsApp com DDD (ex.: 5511999999999)."),
+  contact_email: z.union([z.string().email(), z.literal("")]).optional(),
+  contact_phone: z.string().optional(),
+  contact_city: z.string().optional(),
+  instagram_url: z.union([z.string().url(), z.literal("")]).optional(),
+  facebook_url: z.union([z.string().url(), z.literal("")]).optional(),
+});
+
+export async function saveStoreContactSettings(
+  payload: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { ok: false, error: "Não autorizado." };
+  }
+
+  const parsed = contactSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { ok: false, error: "Confira o WhatsApp e os links." };
+  }
+
+  const p = parsed.data;
+  const supabase = await createClient();
+  const { data: cur } = await supabase.from("site_settings").select("*").eq("id", "default").maybeSingle();
+
+  const { error } = await supabase.from("site_settings").upsert(
+    {
+      ...(cur ?? {}),
+      id: "default",
+      store_whatsapp_e164: p.store_whatsapp_e164,
+      contact_email: p.contact_email?.trim() || null,
+      contact_phone: p.contact_phone?.trim() || null,
+      contact_city: p.contact_city?.trim() || null,
+      instagram_url: p.instagram_url?.trim() || null,
+      facebook_url: p.facebook_url?.trim() || null,
+      updated_at: new Date().toISOString(),
+    } as Record<string, unknown>,
+    { onConflict: "id" }
+  );
+
+  if (error) {
+    console.error("[admin] saveStoreContactSettings", error.message);
+    return { ok: false, error: "Não foi possível salvar o contato." };
   }
 
   return { ok: true };
@@ -82,7 +140,7 @@ export async function uploadHeroMedia(formData: FormData): Promise<{ ok: true; u
 
   if (error) {
     console.error("[admin] uploadHeroMedia", error.message);
-    return { ok: false, error: error.message };
+    return { ok: false, error: mapStorageUploadError(error.message) };
   }
 
   const {

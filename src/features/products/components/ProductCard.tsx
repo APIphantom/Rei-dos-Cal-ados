@@ -6,10 +6,12 @@ import { motion } from "framer-motion";
 import { MessageCircle, Sparkles } from "lucide-react";
 import type { Product } from "@/types/product";
 import { formatBRL } from "@/lib/money";
+import { useStorePublicSettings } from "@/contexts/store-public-context";
 import { buildProductWhatsAppUrlQuick } from "@/lib/whatsapp";
 
 export function ProductCard({ product, index }: { product: Product; index: number }) {
-  const wa = buildProductWhatsAppUrlQuick(product);
+  const { whatsappE164 } = useStorePublicSettings();
+  const wa = buildProductWhatsAppUrlQuick(product, whatsappE164);
 
   return (
     <motion.div
@@ -32,7 +34,7 @@ export function ProductCard({ product, index }: { product: Product; index: numbe
           sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 90vw"
           className="object-cover transition-transform duration-700 group-hover:scale-[1.06]"
           loading={index < 4 ? "eager" : "lazy"}
-          priority={index < 2}
+          priority={index === 0}
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/80 via-background/10 to-transparent" />
 

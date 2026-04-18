@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useStorePublicSettings } from "@/contexts/store-public-context";
 import { Section } from "@/components/ui/section";
+import { createOrderRecord } from "@/features/orders/actions";
 import { formatBRL } from "@/lib/money";
-import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
+import { buildWaMeUrl } from "@/lib/whatsapp";
 import { useCartStore, useCartTotals } from "@/features/cart/store";
 
 const schema = z.object({
@@ -18,7 +20,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function buildOrderMessage(params: { values: FormValues; lines: ReturnType<typeof useCartStore.getState>["lines"]; total: number }) {
+function buildOrderMessage(params: {
+  values: FormValues;
+  lines: ReturnType<typeof useCartStore.getState>["lines"];
+  total: number;
+}) {
   const { values, lines, total } = params;
   const items = lines
     .map(
@@ -44,10 +50,12 @@ function buildOrderMessage(params: { values: FormValues; lines: ReturnType<typeo
 }
 
 export default function CheckoutPage() {
+  const { whatsappE164 } = useStorePublicSettings();
   const lines = useCartStore((s) => s.lines);
   const clear = useCartStore((s) => s.clear);
   const { total } = useCartTotals();
   const [submitted, setSubmitted] = useState(false);
+  const [orderPersisted, setOrderPersisted] = useState<boolean | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -58,14 +66,34 @@ export default function CheckoutPage() {
   const orderUrl = useMemo(() => {
     if (lines.length === 0) return "";
     const values = form.getValues();
-    const message = encodeURIComponent(buildOrderMessage({ values, lines, total }));
-    return `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-  }, [lines, total, form]);
+    const message = buildOrderMessage({ values, lines, total });
+    return buildWaMeUrl(whatsappE164, message);
+  }, [lines, total, form, whatsappE164]);
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
     if (lines.length === 0) return;
-    const message = encodeURIComponent(buildOrderMessage({ values, lines, total }));
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+    const linesPayload = lines.map((l) => ({
+      name: l.product.name,
+      brand: l.product.brand,
+      size: l.size,
+      color: l.color,
+      quantity: l.quantity,
+      unitPrice: l.product.price,
+      lineTotal: l.product.price * l.quantity,
+    }));
+
+    const r = await createOrderRecord({
+      customer_name: values.name,
+      customer_phone: values.phone,
+      customer_address: values.address,
+      total,
+      lines: linesPayload,
+    });
+
+    setOrderPersisted(r.ok === true);
+
+    const message = buildOrderMessage({ values, lines, total });
+    const url = buildWaMeUrl(whatsappE164, message);
     window.open(url, "_blank", "noopener,noreferrer");
     clear();
     setSubmitted(true);
@@ -76,23 +104,24 @@ export default function CheckoutPage() {
       <div className="grid gap-10 lg:grid-cols-[1fr_420px]">
         <div className="space-y-6">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Checkout
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
-              Finalize em 1 minuto
-            </h1>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Checkout</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">Finalize em 1 minuto</h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              Enviaremos seu pedido diretamente no WhatsApp com os detalhes.
+              O pedido é registrado quando possível e também enviado ao WhatsApp da loja.
             </p>
           </div>
 
           {submitted ? (
             <div className="rounded-3xl border border-border bg-card p-8">
               <p className="text-sm font-medium">Pedido enviado para o WhatsApp.</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Se a janela não abriu, use o link abaixo.
-              </p>
+              {orderPersisted === false && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Configure{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-foreground">SUPABASE_SERVICE_ROLE_KEY</code> no
+                  servidor para gravar pedidos automaticamente na base.
+                </p>
+              )}
+              <p className="mt-2 text-sm text-muted-foreground">Se a janela não abriu, use o link abaixo.</p>
               <a
                 href={orderUrl}
                 target="_blank"
@@ -114,9 +143,7 @@ export default function CheckoutPage() {
               className="space-y-5 rounded-3xl border border-border bg-card p-6"
             >
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  Nome
-                </label>
+                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Nome</label>
                 <input
                   className="h-12 w-full rounded-xl border border-border bg-background/40 px-4 text-sm outline-none focus:border-primary"
                   {...form.register("name")}
@@ -149,9 +176,7 @@ export default function CheckoutPage() {
                   {...form.register("address")}
                 />
                 {form.formState.errors.address?.message && (
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.address.message}
-                  </p>
+                  <p className="text-xs text-destructive">{form.formState.errors.address.message}</p>
                 )}
               </div>
 
@@ -171,9 +196,7 @@ export default function CheckoutPage() {
         </div>
 
         <aside className="h-fit rounded-3xl border border-border bg-card p-6">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Resumo do pedido
-          </p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Resumo do pedido</p>
           <div className="mt-4 space-y-3">
             {lines.length === 0 ? (
               <p className="text-sm text-muted-foreground">Seu carrinho está vazio.</p>
@@ -186,9 +209,7 @@ export default function CheckoutPage() {
                       {l.product.brand} · {l.size} · {l.color} · qtd {l.quantity}
                     </p>
                   </div>
-                  <p className="text-sm font-bold text-primary">
-                    {formatBRL(l.product.price * l.quantity)}
-                  </p>
+                  <p className="text-sm font-bold text-primary">{formatBRL(l.product.price * l.quantity)}</p>
                 </div>
               ))
             )}
@@ -210,4 +231,3 @@ export default function CheckoutPage() {
     </Section>
   );
 }
-

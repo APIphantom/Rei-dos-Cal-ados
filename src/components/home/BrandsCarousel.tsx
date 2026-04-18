@@ -5,6 +5,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback } from "react";
 import type { StoreBrand } from "@/config/store-brands";
+import { BrandLogoImage } from "@/components/home/BrandLogoImage";
 import { Container } from "@/components/ui/container";
 
 type Props = {
@@ -64,14 +65,8 @@ export function BrandsCarousel({ brands }: Props) {
                       aria-label={`Ver produtos ${b.name} no catálogo`}
                       className="group flex flex-col items-center gap-3 rounded-2xl px-3 py-5 transition-colors duration-300 hover:bg-primary/[0.06]"
                     >
-                      <span className="flex h-[52px] w-full items-center justify-center">
-                        <img
-                          src={b.logoUrl}
-                          alt=""
-                          className="brand-logo-orange h-12 w-auto max-w-[90%] object-contain object-center opacity-90 transition-opacity duration-300 group-hover:opacity-100"
-                          loading="lazy"
-                          decoding="async"
-                        />
+                      <span className="relative flex h-[52px] w-full items-center justify-center">
+                        <BrandLogoImage brand={b} />
                       </span>
                       <span className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground transition-colors duration-300 group-hover:text-primary">
                         {b.name}

@@ -32,6 +32,7 @@ const EMPTY: ProductPayload = {
   colors: [],
   is_featured: false,
   is_bestseller: false,
+  stock_quantity: 0,
 };
 
 type Props = {
@@ -221,6 +222,20 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
                 className="h-12 w-full rounded-xl border border-[#2a2a2a] bg-[#111] px-4 text-sm text-white outline-none focus:border-[#F59E0B]"
               />
               {errors.price && <p className="text-xs text-red-400">{errors.price.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Estoque (unidades)</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                {...register("stock_quantity", { valueAsNumber: true })}
+                className="h-12 w-full rounded-xl border border-[#2a2a2a] bg-[#111] px-4 text-sm text-white outline-none focus:border-[#F59E0B]"
+              />
+              {errors.stock_quantity && (
+                <p className="text-xs text-red-400">{errors.stock_quantity.message}</p>
+              )}
             </div>
 
             <div className="md:col-span-2 space-y-2">
