@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { toast } from "sonner";
-import { Plus, Search } from "lucide-react";
-import { deleteProduct } from "@/features/admin/products/actions";
+import { Loader2, Plus, RefreshCcw, Search, Trash2, X } from "lucide-react";
 import { STORE_BRAND_NAMES, brandsMatch } from "@/config/store-brands";
 import { formatBRL } from "@/lib/money";
+import { cn } from "@/lib/utils";
 
 type Row = {
   id: string;
@@ -22,14 +23,30 @@ export default function AdminProductsPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    fetch("/api/admin/products")
-      .then((r) => r.json())
-      .then((d) => setRows(d.products ?? []))
-      .catch(() => setRows([]));
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const response = await fetch("/api/admin/products", { cache: "no-store" });
+      if (!response.ok) throw new Error("Falha ao carregar produtos.");
+      const data = await response.json();
+      setRows(data.products ?? []);
+    } catch {
+      setRows([]);
+      setLoadError("Não foi possível carregar os produtos agora.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
 
   const filtered = useMemo(() => {
     let list = rows;
@@ -47,11 +64,22 @@ export default function AdminProductsPage() {
   }, [rows, q, brandFilter]);
 
   function onDelete(id: string) {
-    if (!confirm("Excluir este produto?")) return;
+    setDeleteId(id);
+  }
+
+  function confirmDelete() {
+    if (!deleteId) return;
+    const currentId = deleteId;
     startTransition(async () => {
       try {
-        await deleteProduct(id);
-        setRows((prev) => prev.filter((x) => x.id !== id));
+        const res = await fetch(`/api/admin/products/${currentId}`, { method: "DELETE" });
+        const data = (await res.json()) as { ok?: boolean; error?: string };
+        if (!res.ok) {
+          toast.error(data.error ?? "Não foi possível excluir.");
+          return;
+        }
+        setRows((prev) => prev.filter((x) => x.id !== currentId));
+        setDeleteId(null);
         toast.success("Produto removido.");
       } catch {
         toast.error("Não foi possível excluir.");
@@ -101,7 +129,30 @@ export default function AdminProductsPage() {
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          onClick={() => void loadProducts()}
+          disabled={loading}
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111] px-4 text-sm font-semibold text-zinc-200 transition-colors hover:border-[#F59E0B]/50 disabled:opacity-50"
+        >
+          <RefreshCcw className={cn("h-4 w-4", loading && "animate-spin")} />
+          Atualizar
+        </button>
       </div>
+
+      {loadError && (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm text-red-200">
+          {loadError}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-8 text-center text-sm text-zinc-500">
+          <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin text-[#F59E0B]" />
+          Carregando produtos…
+        </div>
+      ) : (
+        <>
 
       <div className="space-y-3 md:hidden">
         {filtered.map((r) => (
@@ -127,11 +178,11 @@ export default function AdminProductsPage() {
                 </Link>
                 <button
                   type="button"
-                  disabled={pending}
+                  disabled={pending && deleteId === r.id}
                   onClick={() => onDelete(r.id)}
                   className="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-lg border border-[#2a2a2a] px-3 text-xs font-bold uppercase tracking-wider text-zinc-500 sm:flex-none hover:border-red-500/50 hover:text-red-400 disabled:opacity-50"
                 >
-                  Excluir
+                  {pending && deleteId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Excluir"}
                 </button>
               </div>
             </div>
@@ -186,11 +237,11 @@ export default function AdminProductsPage() {
                       </Link>
                       <button
                         type="button"
-                        disabled={pending}
+                        disabled={pending && deleteId === r.id}
                         onClick={() => onDelete(r.id)}
                         className="rounded-lg border border-[#2a2a2a] px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-zinc-500 transition-colors hover:border-red-500/50 hover:text-red-400 disabled:opacity-50"
                       >
-                        Excluir
+                        {pending && deleteId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Excluir"}
                       </button>
                     </div>
                   </td>
@@ -207,6 +258,69 @@ export default function AdminProductsPage() {
           </table>
         </div>
       </div>
+        </>
+      )}
+
+      <Dialog.Root open={!!deleteId} onOpenChange={(open) => !open && !pending && setDeleteId(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/80" />
+          <Dialog.Content
+            className="fixed left-1/2 top-1/2 z-[101] w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-5 shadow-xl outline-none"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <Dialog.Title className="font-heading text-lg font-bold text-white">
+                  Excluir produto
+                </Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm leading-relaxed text-zinc-500">
+                  Esta ação remove o produto do catálogo. Confirme apenas se tem certeza.
+                </Dialog.Description>
+              </div>
+              <Dialog.Close
+                type="button"
+                disabled={pending}
+                className="grid h-9 w-9 place-items-center rounded-full border border-[#2a2a2a] text-zinc-400 hover:border-[#F59E0B]/50 hover:text-white disabled:opacity-50"
+                aria-label="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </Dialog.Close>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/[0.06] p-3 text-sm text-red-100">
+              O item será removido imediatamente do painel.
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <Dialog.Close
+                type="button"
+                disabled={pending}
+                className="h-11 rounded-full border border-[#2a2a2a] px-6 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-600 disabled:opacity-50"
+              >
+                Cancelar
+              </Dialog.Close>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={confirmDelete}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-red-500 px-6 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-50"
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Excluindo…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Confirmar exclusão
+                  </>
+                )}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

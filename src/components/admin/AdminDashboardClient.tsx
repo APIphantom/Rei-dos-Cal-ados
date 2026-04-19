@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Package, Plus, ShoppingBag, Wallet } from "lucide-react";
+import { Package, Palette, Plus, Settings, ShoppingBag, Wallet } from "lucide-react";
 import { useLocalOrdersStore, selectLocalOrderMetrics } from "@/features/admin/local-orders-store";
 import { formatBRL } from "@/lib/money";
 
@@ -80,6 +80,53 @@ export function AdminDashboardClient({ displayName, email, productCount }: Props
         </p>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Link
+          href="/admin/customize"
+          className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-5 transition-colors hover:border-[#F59E0B]/35"
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#F59E0B]/10 text-[#F59E0B]">
+              <Palette className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-semibold text-white">Customizar vitrine</p>
+              <p className="text-sm text-zinc-500">Hero, banner e aparência da home</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/orders"
+          className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-5 transition-colors hover:border-[#F59E0B]/35"
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#F59E0B]/10 text-[#F59E0B]">
+              <ShoppingBag className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-semibold text-white">Gerenciar pedidos</p>
+              <p className="text-sm text-zinc-500">Atualize status e acompanhe a fila</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/settings"
+          className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-5 transition-colors hover:border-[#F59E0B]/35"
+        >
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#F59E0B]/10 text-[#F59E0B]">
+              <Settings className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-semibold text-white">Ajustes da loja</p>
+              <p className="text-sm text-zinc-500">Contato, mídia do hero e depoimentos</p>
+            </div>
+          </div>
+        </Link>
+      </div>
+
       <div className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 sm:p-6">
         <div className="flex items-center gap-2">
           <ShoppingBag className="h-5 w-5 text-[#F59E0B]" />
@@ -88,10 +135,10 @@ export function AdminDashboardClient({ displayName, email, productCount }: Props
 
         <ul className="mt-4 space-y-3 md:hidden">
           {recent.length === 0 ? (
-            <li className="rounded-xl border border-dashed border-[#2a2a2a] py-8 text-center text-sm text-zinc-500">
-              Nenhum pedido.{" "}
-              <Link href="/admin/orders" className="font-semibold text-[#F59E0B] hover:underline">
-                Pedidos
+            <li className="rounded-xl border border-dashed border-[#2a2a2a] px-4 py-8 text-center text-sm text-zinc-500">
+              Nenhum pedido ainda.
+              <Link href="/admin/orders" className="ml-1 font-semibold text-[#F59E0B] hover:underline">
+                Registrar primeiro pedido
               </Link>
             </li>
           ) : (

@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { HeroSettingsForm } from "@/components/admin/HeroSettingsForm";
-import { StoreContactForm } from "@/components/admin/StoreContactForm";
-import { TestimonialsSettingsForm } from "@/components/admin/TestimonialsSettingsForm";
+import { AdminSettingsClient } from "@/components/admin/AdminSettingsClient";
 import { getHeroSettings } from "@/lib/site-settings";
 import { getStorePublicSettings } from "@/lib/store-public-settings";
 
@@ -10,7 +8,7 @@ export default async function AdminSettingsPage() {
   const [hero, store] = await Promise.all([getHeroSettings(), getStorePublicSettings()]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 sm:space-y-8">
+    <div className="mx-auto max-w-3xl space-y-8 sm:space-y-10">
       <div>
         <Link
           href="/admin"
@@ -20,12 +18,13 @@ export default async function AdminSettingsPage() {
           Painel
         </Link>
         <h1 className="mt-3 font-heading text-2xl font-bold tracking-tight sm:mt-4 sm:text-3xl">Configurações da loja</h1>
-        <p className="mt-2 text-sm text-zinc-500">Hero, contato da loja e depoimentos da página inicial.</p>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
+          Ajuste a mídia do hero, os canais de contato e os depoimentos — uma secção de cada vez para manter o painel
+          legível.
+        </p>
       </div>
 
-      <HeroSettingsForm initialType={hero.type} initialUrl={hero.url} />
-      <StoreContactForm initial={store} />
-      <TestimonialsSettingsForm />
+      <AdminSettingsClient heroType={hero.type} heroUrl={hero.url} store={store} />
     </div>
   );
 }

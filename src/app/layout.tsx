@@ -1,10 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { WhatsAppFloating } from "@/components/layout/WhatsAppFloating";
-import { CartDrawer } from "@/features/cart/components/CartDrawer";
+import { PublicSiteChrome } from "@/components/layout/PublicSiteChrome";
 import { fontBody, fontHeading } from "@/lib/fonts";
 import { getStorePublicSettings } from "@/lib/store-public-settings";
 
@@ -25,11 +22,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="pt-BR" className={`${fontHeading.variable} ${fontBody.variable}`} suppressHydrationWarning>
       <body className="min-h-screen font-body text-base font-normal text-foreground antialiased">
         <Providers storePublic={storePublic}>
-          <Header />
-          <CartDrawer />
-          <WhatsAppFloating />
-          <main className="min-w-0 pt-14">{children}</main>
-          <Footer store={storePublic} />
+          <PublicSiteChrome storePublic={storePublic}>{children}</PublicSiteChrome>
         </Providers>
       </body>
     </html>

@@ -1,9 +1,9 @@
 "use server";
 
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { mapStorageUploadError } from "@/lib/storage-errors";
 import { getSessionUser, getProfileForUser } from "@/lib/auth/server";
+import { getPayloadErrorMessage, productPayloadSchema, type ProductPayload } from "@/features/admin/products/schema";
 
 function normalizeHex(raw: string): string {
   const t = raw.trim();
@@ -20,31 +20,6 @@ function normalizeHex(raw: string): string {
   const only = t.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6).padEnd(6, "0");
   return `#${only}`.toUpperCase();
 }
-
-export const productPayloadSchema = z.object({
-  brand: z.string().min(1),
-  name: z.string().min(1),
-  description: z.string().min(1),
-  price: z.number().positive(),
-  category: z.string().min(1),
-  image_url: z.string().min(1).refine((s) => /^https?:\/\//i.test(s), "URL da imagem inválida"),
-  gallery_urls: z.array(z.string()).default([]),
-  tags: z.array(z.string().min(1)).default([]),
-  sizes: z.array(z.string()).default([]),
-  colors: z
-    .array(
-      z.object({
-        name: z.string().min(1),
-        hex: z.string().min(1),
-      })
-    )
-    .default([]),
-  is_featured: z.boolean().default(false),
-  is_bestseller: z.boolean().default(false),
-  stock_quantity: z.number().int().min(0).default(0),
-});
-
-export type ProductPayload = z.infer<typeof productPayloadSchema>;
 
 async function requireAdmin() {
   const user = await getSessionUser();
@@ -73,9 +48,27 @@ export async function uploadProductImage(formData: FormData): Promise<{ ok: true
     return { ok: false, error: "Selecione um arquivo de imagem." };
   }
 
+  const mime = (file.type || "").toLowerCase();
+  const allowedMime = new Set([
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/avif",
+  ]);
+  const extLower = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const allowedExt = new Set(["png", "jpg", "jpeg", "webp", "avif"]);
+  const mimeOk = mime && allowedMime.has(mime);
+  const extOk = allowedExt.has(extLower);
+  if (!mimeOk && !extOk) {
+    return {
+      ok: false,
+      error: "Formato não suportado. Use PNG, JPG, WebP ou AVIF.",
+    };
+  }
+
   const supabase = await createClient();
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  const safeExt = ext && /^[a-z0-9]+$/.test(ext) ? ext : "jpg";
+  const safeExt = extLower && /^[a-z0-9]+$/.test(extLower) ? extLower : "jpg";
   const path = `products/${Date.now()}-${crypto.randomUUID()}.${safeExt}`;
 
   const { error } = await supabase.storage.from("product-images").upload(path, file, {
@@ -105,7 +98,7 @@ export async function createProductPayload(
 
   const parsed = productPayloadSchema.safeParse(payload);
   if (!parsed.success) {
-    return { ok: false, error: "Confira os campos obrigatórios." };
+    return { ok: false, error: getPayloadErrorMessage(parsed.error) };
   }
 
   const p = parsed.data;
@@ -152,7 +145,7 @@ export async function updateProductPayload(
 
   const parsed = productPayloadSchema.safeParse(payload);
   if (!parsed.success) {
-    return { ok: false, error: "Confira os campos obrigatórios." };
+    return { ok: false, error: getPayloadErrorMessage(parsed.error) };
   }
 
   const p = parsed.data;

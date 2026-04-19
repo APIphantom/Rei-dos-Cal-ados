@@ -3,11 +3,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ImageIcon, LayoutTemplate, RotateCcw, Save, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, ImageIcon, LayoutTemplate, RotateCcw, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { HomeHeroClient, type HeroMedia } from "@/components/home/HomeHeroClient";
 import { PromoBannerClient } from "@/components/home/PromoBannerClient";
 import { ThemeColorField } from "@/components/admin/ThemeColorField";
+import {
+  HERO_BADGE_ICON_OPTIONS,
+  normalizeHeroBadges,
+  type HeroBadgeEntry,
+} from "@/lib/hero-badge-icons";
 import {
   HERO_JPEG_COMPRESS_MAX_BYTES,
   HERO_UI_DEFAULTS,
@@ -30,6 +35,46 @@ import {
   DESKTOP_PREVIEW_WIDTH_PX,
   ScaledDesktopPreview,
 } from "@/components/admin/ScaledDesktopPreview";
+import { cn } from "@/lib/utils";
+
+type EditorPanelKey = "content" | "media" | "style" | "advanced";
+
+function CustomizeSubPanelTabs({
+  value,
+  onChange,
+}: {
+  value: EditorPanelKey;
+  onChange: (v: EditorPanelKey) => void;
+}) {
+  const tabs: { id: EditorPanelKey; label: string; hint: string }[] = [
+    { id: "content", label: "Conteúdo", hint: "Textos e botões" },
+    { id: "media", label: "Mídia", hint: "Imagens e foco" },
+    { id: "style", label: "Estilo", hint: "Overlay e cores" },
+    { id: "advanced", label: "Avançado", hint: "Tipografia" },
+  ];
+  return (
+    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Secções do editor">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={value === t.id}
+          onClick={() => onChange(t.id)}
+          className={cn(
+            "min-w-[calc(50%-0.25rem)] rounded-xl border px-3 py-2.5 text-left transition-colors sm:min-w-0",
+            value === t.id
+              ? "border-[#F59E0B] bg-[#F59E0B]/15 text-[#F59E0B]"
+              : "border-[#2a2a2a] text-zinc-400 hover:border-zinc-600"
+          )}
+        >
+          <span className="block text-xs font-bold">{t.label}</span>
+          <span className="mt-0.5 block text-[10px] text-zinc-500">{t.hint}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function usePreviewScale() {
   const [scale, setScale] = useState(DESKTOP_PREVIEW_SCALE);
@@ -83,6 +128,8 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
   const [bannerCropOpen, setBannerCropOpen] = useState(false);
   const [bannerCropSrc, setBannerCropSrc] = useState<string | null>(null);
   const [bannerCropTarget, setBannerCropTarget] = useState<BannerCropTarget>("desktop");
+  const [heroPanel, setHeroPanel] = useState<EditorPanelKey>("content");
+  const [bannerPanel, setBannerPanel] = useState<EditorPanelKey>("content");
   const heroPatch = useHeroUiStore((s) => s.patch);
   const heroReset = useHeroUiStore((s) => s.reset);
   const setHeroImage = useHeroUiStore((s) => s.setImageOverride);
@@ -203,7 +250,7 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
         <motion.aside
           initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
-          className="space-y-5"
+          className="space-y-6"
         >
           {tab === "hero" ? (
             <>
@@ -222,6 +269,9 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                 </button>
               </div>
 
+              <CustomizeSubPanelTabs value={heroPanel} onChange={setHeroPanel} />
+
+              {heroPanel === "media" && (
               <CustomizeSection
                 title="Imagens locais (opcional)"
                 subtitle="Substituem temporariamente a mídia das Configurações neste equipamento. Útil para testar composições antes de publicar."
@@ -349,7 +399,10 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                 />
               ) : null}
               </CustomizeSection>
+              )}
 
+              {heroPanel === "style" && (
+              <>
               <CustomizeSection
                 title="Sobreposição e contraste"
                 subtitle="Camada escura ou gradiente por cima da imagem/vídeo para o texto saltar à vista."
@@ -403,12 +456,83 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
               </CustomizeSection>
 
               <CustomizeSection
+                title="Cores do texto e botões"
+                subtitle="Combine com o tema da loja; «Restaurar» volta ao padrão do tema."
+              >
+              <ThemeColorField
+                label="Etiqueta pequena"
+                value={hero.eyebrowColor}
+                onChange={(eyebrowColor) => heroPatch({ eyebrowColor })}
+                themeDefault={HERO_UI_DEFAULTS.eyebrowColor}
+              />
+              <ThemeColorField
+                label="Cor do título"
+                value={hero.headlineColor}
+                onChange={(headlineColor) => heroPatch({ headlineColor })}
+                themeDefault={HERO_UI_DEFAULTS.headlineColor}
+              />
+              <ThemeColorField
+                label="Destaque no título — gradiente (início)"
+                description="Aplica-se ao trecho indicado em «Destaque no título», na aba Conteúdo."
+                value={hero.headlineAccentFrom ?? HERO_UI_DEFAULTS.headlineAccentFrom}
+                onChange={(headlineAccentFrom) => heroPatch({ headlineAccentFrom })}
+                themeDefault={HERO_UI_DEFAULTS.headlineAccentFrom}
+              />
+              <ThemeColorField
+                label="Destaque no título — gradiente (fim)"
+                value={hero.headlineAccentTo ?? HERO_UI_DEFAULTS.headlineAccentTo}
+                onChange={(headlineAccentTo) => heroPatch({ headlineAccentTo })}
+                themeDefault={HERO_UI_DEFAULTS.headlineAccentTo}
+              />
+              <ThemeColorField
+                label="Cor do subtítulo"
+                value={hero.sublineColor}
+                onChange={(sublineColor) => heroPatch({ sublineColor })}
+                themeDefault={HERO_UI_DEFAULTS.sublineColor}
+              />
+              <ThemeColorField
+                label="Botão principal — fundo (CTA)"
+                description="Cor de fundo do botão &quot;Ver coleção&quot;."
+                value={hero.ctaBackgroundColor}
+                onChange={(ctaBackgroundColor) => heroPatch({ ctaBackgroundColor })}
+                themeDefault={HERO_UI_DEFAULTS.ctaBackgroundColor}
+              />
+              <ThemeColorField
+                label="Botão principal — texto (CTA)"
+                value={hero.ctaForegroundColor}
+                onChange={(ctaForegroundColor) => heroPatch({ ctaForegroundColor })}
+                themeDefault={HERO_UI_DEFAULTS.ctaForegroundColor}
+              />
+              <ThemeColorField
+                label="Link secundário"
+                value={hero.secondaryLinkColor}
+                onChange={(secondaryLinkColor) => heroPatch({ secondaryLinkColor })}
+                themeDefault={HERO_UI_DEFAULTS.secondaryLinkColor}
+              />
+              </CustomizeSection>
+              </>
+              )}
+
+              {heroPanel === "content" && (
+              <CustomizeSection
                 title="Textos e alinhamento"
                 subtitle="Estes textos aparecem sobre o hero. Arraste o bloco na pré-visualização para posicionar."
               >
               <FieldText label="Etiqueta pequena" value={hero.eyebrow} onChange={(eyebrow) => heroPatch({ eyebrow })} />
               <FieldText label="Título principal" value={hero.headline} onChange={(headline) => heroPatch({ headline })} />
+              <FieldText
+                label="Destaque no título (trecho exato, opcional)"
+                value={hero.headlineHighlight ?? ""}
+                onChange={(headlineHighlight) => heroPatch({ headlineHighlight })}
+              />
+              <p className="text-[11px] leading-relaxed text-zinc-600">
+                O trecho tem de coincidir exactamente com parte do título para receber o gradiente definido em Estilo.
+              </p>
               <FieldText label="Subtítulo" value={hero.subline} onChange={(subline) => heroPatch({ subline })} />
+              <HeroBadgesEditor
+                value={normalizeHeroBadges(hero.badges, [])}
+                onChange={(badges) => heroPatch({ badges })}
+              />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <FieldText
                   label="Botão primário"
@@ -439,7 +563,14 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                   ))}
                 </div>
               </div>
+              </CustomizeSection>
+              )}
 
+              {heroPanel === "advanced" && (
+              <CustomizeSection
+                title="Tipografia do título"
+                subtitle="Ajuste fino do título principal sem sobrecarregar o ecrã de edição."
+              >
               <FieldRange
                 label="Título — tamanho (px)"
                 min={22}
@@ -456,49 +587,7 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                 onChange={(headlineWeight) => heroPatch({ headlineWeight: headlineWeight as 400 | 500 | 600 | 700 })}
               />
               </CustomizeSection>
-
-              <CustomizeSection
-                title="Cores do texto e botões"
-                subtitle="Combine com o tema da loja; «Restaurar» volta ao padrão do tema."
-              >
-              <ThemeColorField
-                label="Etiqueta pequena"
-                value={hero.eyebrowColor}
-                onChange={(eyebrowColor) => heroPatch({ eyebrowColor })}
-                themeDefault={HERO_UI_DEFAULTS.eyebrowColor}
-              />
-              <ThemeColorField
-                label="Cor do título"
-                value={hero.headlineColor}
-                onChange={(headlineColor) => heroPatch({ headlineColor })}
-                themeDefault={HERO_UI_DEFAULTS.headlineColor}
-              />
-              <ThemeColorField
-                label="Cor do subtítulo"
-                value={hero.sublineColor}
-                onChange={(sublineColor) => heroPatch({ sublineColor })}
-                themeDefault={HERO_UI_DEFAULTS.sublineColor}
-              />
-              <ThemeColorField
-                label="Botão principal — fundo (CTA)"
-                description="Cor de fundo do botão &quot;Ver coleção&quot;."
-                value={hero.ctaBackgroundColor}
-                onChange={(ctaBackgroundColor) => heroPatch({ ctaBackgroundColor })}
-                themeDefault={HERO_UI_DEFAULTS.ctaBackgroundColor}
-              />
-              <ThemeColorField
-                label="Botão principal — texto (CTA)"
-                value={hero.ctaForegroundColor}
-                onChange={(ctaForegroundColor) => heroPatch({ ctaForegroundColor })}
-                themeDefault={HERO_UI_DEFAULTS.ctaForegroundColor}
-              />
-              <ThemeColorField
-                label="Link secundário"
-                value={hero.secondaryLinkColor}
-                onChange={(secondaryLinkColor) => heroPatch({ secondaryLinkColor })}
-                themeDefault={HERO_UI_DEFAULTS.secondaryLinkColor}
-              />
-              </CustomizeSection>
+              )}
             </>
           ) : (
             <>
@@ -517,6 +606,9 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                 </button>
               </div>
 
+              <CustomizeSubPanelTabs value={bannerPanel} onChange={setBannerPanel} />
+
+              {bannerPanel === "media" && (
               <CustomizeSection
                 title="Visibilidade e imagens"
                 subtitle="O recorte usa proporção larga (~11∶4). Envie arte em paisagem; pode haver imagem extra para telemóvel."
@@ -614,7 +706,10 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                 onSelect={(imageObjectPosition) => bannerPatch({ imageObjectPosition })}
               />
               </CustomizeSection>
+              )}
 
+              {bannerPanel === "style" && (
+              <>
               <CustomizeSection title="Sobreposição" subtitle="Escurecimento ou gradiente por cima da arte do banner.">
               <FieldRange
                 label="Opacidade overlay"
@@ -660,33 +755,6 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
               )}
               </CustomizeSection>
 
-              <CustomizeSection
-                title="Textos e alinhamento"
-                subtitle="Mensagens da faixa. Arraste o bloco na pré-visualização para posicionar."
-              >
-              <FieldText label="Etiqueta pequena" value={banner.eyebrow} onChange={(eyebrow) => bannerPatch({ eyebrow })} />
-              <FieldText label="Título" value={banner.headline} onChange={(headline) => bannerPatch({ headline })} />
-              <FieldText label="Subtítulo" value={banner.subline} onChange={(subline) => bannerPatch({ subline })} />
-
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Alinhamento do bloco</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(["left", "center", "right"] as HeroTextAlign[]).map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => bannerPatch({ textAlign: a })}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
-                        banner.textAlign === a ? "bg-[#F59E0B] text-black" : "border border-[#2a2a2a] text-zinc-400"
-                      }`}
-                    >
-                      {a === "left" ? "Esquerda" : a === "center" ? "Centro" : "Direita"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              </CustomizeSection>
-
               <CustomizeSection title="Cores do texto e botão" subtitle="Harmonize com o resto da loja.">
               <ThemeColorField
                 label="Etiqueta pequena"
@@ -719,6 +787,50 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                 themeDefault={BANNER_UI_DEFAULTS.ctaForegroundColor}
               />
               </CustomizeSection>
+              </>
+              )}
+
+              {bannerPanel === "content" && (
+              <CustomizeSection
+                title="Textos e alinhamento"
+                subtitle="Mensagens da faixa. Arraste o bloco na pré-visualização para posicionar."
+              >
+              <FieldText label="Etiqueta pequena" value={banner.eyebrow} onChange={(eyebrow) => bannerPatch({ eyebrow })} />
+              <FieldText label="Título" value={banner.headline} onChange={(headline) => bannerPatch({ headline })} />
+              <FieldText label="Subtítulo" value={banner.subline} onChange={(subline) => bannerPatch({ subline })} />
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Alinhamento do bloco</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(["left", "center", "right"] as HeroTextAlign[]).map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      onClick={() => bannerPatch({ textAlign: a })}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
+                        banner.textAlign === a ? "bg-[#F59E0B] text-black" : "border border-[#2a2a2a] text-zinc-400"
+                      }`}
+                    >
+                      {a === "left" ? "Esquerda" : a === "center" ? "Centro" : "Direita"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              </CustomizeSection>
+              )}
+
+              {bannerPanel === "advanced" && (
+              <CustomizeSection
+                title="Fluxo de trabalho"
+                subtitle="Boas práticas para publicar alterações com confiança."
+              >
+                <p className="text-[13px] leading-relaxed text-zinc-400">
+                  Arraste o bloco de texto na pré-visualização para alinhar com a arte. Guarde as alterações com{" "}
+                  <strong className="text-zinc-200">Guardar alterações</strong> no topo — os textos e imagens locais ficam
+                  neste dispositivo até limpar o armazenamento do navegador.
+                </p>
+              </CustomizeSection>
+              )}
             </>
           )}
         </motion.aside>
@@ -979,6 +1091,112 @@ function FieldText({
         onChange={(e) => onChange(e.target.value)}
         className="mt-2 w-full rounded-xl border border-[#2a2a2a] bg-[#111] px-3 py-2 text-sm outline-none focus:border-[#F59E0B]/50"
       />
+    </div>
+  );
+}
+
+function swapBadgeOrder(rows: HeroBadgeEntry[], from: number, to: number) {
+  if (to < 0 || to >= rows.length || from === to) return rows;
+  const next = [...rows];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
+function HeroBadgesEditor({
+  value,
+  onChange,
+}: {
+  value: HeroBadgeEntry[];
+  onChange: (badges: HeroBadgeEntry[]) => void;
+}) {
+  const rows = value;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Selos (badges)</p>
+      <p className="text-[11px] leading-relaxed text-zinc-600">
+        Para cada selo: texto na loja e ícone. «Automático» usa palavras-chave no texto (frete, juros, entrega…). Use as
+        setas para mudar a ordem na página.
+      </p>
+      {rows.map((row, i) => (
+        <div
+          key={`hero-badge-${i}`}
+          className="flex flex-col gap-2 rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] p-3 sm:flex-row sm:items-stretch"
+        >
+          <div className="flex shrink-0 flex-row items-center justify-center gap-1 sm:flex-col sm:justify-start sm:py-0.5">
+            <button
+              type="button"
+              disabled={i === 0}
+              aria-label={`Mover selo «${row.label || `Selo ${i + 1}`}» para cima`}
+              onClick={() => onChange(swapBadgeOrder(rows, i, i - 1))}
+              className="inline-flex h-10 min-w-[44px] items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#111] text-zinc-400 transition-colors hover:border-[#F59E0B]/45 hover:text-[#F59E0B] disabled:pointer-events-none disabled:opacity-25"
+            >
+              <ChevronUp className="h-4 w-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              disabled={i === rows.length - 1}
+              aria-label={`Mover selo «${row.label || `Selo ${i + 1}`}» para baixo`}
+              onClick={() => onChange(swapBadgeOrder(rows, i, i + 1))}
+              className="inline-flex h-10 min-w-[44px] items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#111] text-zinc-400 transition-colors hover:border-[#F59E0B]/45 hover:text-[#F59E0B] disabled:pointer-events-none disabled:opacity-25"
+            >
+              <ChevronDown className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+          <label className="sr-only" htmlFor={`hero-badge-text-${i}`}>
+            Texto do selo {i + 1}
+          </label>
+          <input
+            id={`hero-badge-text-${i}`}
+            type="text"
+            value={row.label}
+            onChange={(e) => {
+              const next = [...rows];
+              next[i] = { ...row, label: e.target.value };
+              onChange(next);
+            }}
+            placeholder="Texto do selo"
+            className="min-h-[44px] flex-1 rounded-lg border border-[#2a2a2a] bg-[#111] px-3 py-2 text-sm outline-none focus:border-[#F59E0B]/50"
+          />
+          <label className="sr-only" htmlFor={`hero-badge-icon-${i}`}>
+            Ícone do selo {i + 1}
+          </label>
+          <select
+            id={`hero-badge-icon-${i}`}
+            value={row.icon}
+            onChange={(e) => {
+              const next = [...rows];
+              next[i] = {
+                ...row,
+                icon: e.target.value as HeroBadgeEntry["icon"],
+              };
+              onChange(next);
+            }}
+            className="min-h-[44px] w-full shrink-0 rounded-lg border border-[#2a2a2a] bg-[#111] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-[#F59E0B]/50 sm:w-[min(100%,240px)]"
+          >
+            {HERO_BADGE_ICON_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => onChange(rows.filter((_, j) => j !== i))}
+            className="min-h-[44px] shrink-0 rounded-lg border border-[#2a2a2a] px-3 text-xs font-semibold text-zinc-400 transition-colors hover:border-red-500/40 hover:text-red-300"
+          >
+            Remover
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...rows, { label: "", icon: "auto" }])}
+        className="w-full rounded-lg border border-dashed border-[#2a2a2a] px-4 py-2.5 text-xs font-semibold text-[#F59E0B] transition-colors hover:border-[#F59E0B]/50 sm:w-auto"
+      >
+        + Adicionar selo
+      </button>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { normalizeHeroBadges, type HeroBadgeEntry } from "@/lib/hero-badge-icons";
 import { createSafeLocalStorage } from "@/lib/persist-storage-local";
 
 export type HeroTextAlign = "left" | "center" | "right";
@@ -12,10 +13,20 @@ export const HERO_UI_DEFAULTS = {
   gradientFrom: "rgba(3, 7, 18, 0.2)",
   gradientTo: "rgba(3, 7, 18, 0.82)",
   eyebrow: "Rei Dos Calçados",
-  headline: "Estilo começa pelos pés",
-  subline: "Frete grátis · 6x sem juros",
-  primaryLabel: "Ver coleção",
-  secondaryLabel: "Ir ao catálogo",
+  headline: "Calçados que não passam despercebidos.",
+  /** Trecho exato do título que recebe gradiente / destaque visual (vazio = título uniforme) */
+  headlineHighlight: "Calçados",
+  headlineAccentFrom: "hsl(38 92% 56%)",
+  headlineAccentTo: "hsl(0 0% 100%)",
+  /** Selos do hero: texto + ícone manual ou «auto» (inferência por palavras-chave). */
+  badges: [
+    { label: "Frete grátis no Brasil", icon: "auto" },
+    { label: "6x sem juros", icon: "auto" },
+    { label: "Entrega rápida", icon: "auto" },
+  ] satisfies HeroBadgeEntry[],
+  subline: "Atitude urbana e estoque limitado nos hits da temporada — eleve o seu próximo look.",
+  primaryLabel: "Explorar coleção",
+  secondaryLabel: "Ver o que acabou de chegar",
   textAlign: "left" as HeroTextAlign,
   /** Canto superior esquerdo do bloco de texto, % da área útil (0–100; arraste limitado ao retângulo do hero) */
   contentLeftPct: 5,
@@ -43,7 +54,9 @@ export const HERO_UI_DEFAULTS = {
   imageObjectPosition: "50% 52%",
 };
 
-export type HeroUiState = typeof HERO_UI_DEFAULTS;
+export type HeroUiState = Omit<typeof HERO_UI_DEFAULTS, "badges"> & {
+  badges: HeroBadgeEntry[];
+};
 
 type HeroUiActions = {
   patch: (p: Partial<HeroUiState>) => void;
@@ -130,6 +143,16 @@ export const useHeroUiStore = create<HeroUiState & HeroUiActions>()(
       name: "rdc-hero-ui-v1",
       storage: createJSONStorage(() => createSafeLocalStorage() as Storage),
       partialize: (s) => sliceHeroStateForPersist(s),
+      merge: (persistedState, currentState) => {
+        const p = persistedState as Partial<HeroUiState> | undefined;
+        if (!p || typeof p !== "object") return currentState;
+        const badgesSource = p.badges !== undefined ? p.badges : currentState.badges;
+        return {
+          ...currentState,
+          ...p,
+          badges: normalizeHeroBadges(badgesSource, currentState.badges),
+        };
+      },
     }
   )
 );

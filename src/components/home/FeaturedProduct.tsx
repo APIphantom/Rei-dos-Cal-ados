@@ -19,14 +19,14 @@ export function FeaturedProduct({ product }: { product: Product | null }) {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/[0.35]">
-          <div className="grid gap-0 lg:grid-cols-2">
-            <div className="relative aspect-[4/5] min-h-[280px] lg:aspect-auto lg:min-h-[420px]">
+          <div className="grid gap-0 lg:grid-cols-[1.12fr_0.88fr]">
+            <div className="relative aspect-[4/5] min-h-[320px] sm:min-h-[360px] lg:aspect-auto lg:min-h-[min(72vh,600px)]">
               <Image
                 src={product.images[0] ?? product.imageUrl}
                 alt={product.name}
                 fill
                 className="object-cover"
-                sizes="(min-width: 1024px) 50vw, 100vw"
+                sizes="(min-width: 1024px) 56vw, 100vw"
                 priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-background/40" />

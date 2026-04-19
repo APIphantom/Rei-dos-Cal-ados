@@ -1,24 +1,29 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   createProductPayload,
-  productPayloadSchema,
-  type ProductPayload,
   updateProductPayload,
   uploadProductImage,
 } from "@/features/admin/products/actions";
+import { productPayloadSchema, type ProductPayload } from "@/features/admin/products/schema";
 import { TagInput } from "@/components/admin/TagInput";
 import { AdminImage } from "@/components/ui/admin-image";
 import { cn } from "@/lib/utils";
 
 const SHOE_SIZES = ["38", "39", "40", "41", "42", "43", "44", "45"];
+
+const IMAGE_ACCEPT =
+  "image/png,image/jpeg,image/jpg,image/webp,image/avif,.png,.jpg,.jpeg,.webp,.avif";
 
 const EMPTY: ProductPayload = {
   brand: "",
@@ -36,6 +41,49 @@ const EMPTY: ProductPayload = {
   stock_quantity: 0,
 };
 
+function SortableGalleryItem({
+  id,
+  url,
+  onRemove,
+}: {
+  id: string;
+  url: string;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      className={cn(
+        "group relative aspect-square overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111]",
+        isDragging && "opacity-60 ring-2 ring-[#F59E0B]/70"
+      )}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      <AdminImage src={url} alt="" fill sizes="(max-width: 768px) 45vw, 160px" className="object-cover" />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute right-2 top-2 rounded-lg bg-black/70 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+        aria-label="Remover"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        className="absolute bottom-2 left-2 rounded-lg border border-white/10 bg-black/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-200 opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+        {...attributes}
+        {...listeners}
+      >
+        Arrastar
+      </button>
+    </li>
+  );
+}
+
 type Props = {
   mode: "create" | "edit";
   productId?: string;
@@ -51,9 +99,11 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [mainPreview, setMainPreview] = useState<string | null>(null);
-  const [pendingGallery, setPendingGallery] = useState<{ id: string; preview: string }[]>([]);
+  const [queuedGallery, setQueuedGallery] = useState<{ id: string; file: File; preview: string }[]>([]);
   const [colorName, setColorName] = useState("");
   const [colorHex, setColorHex] = useState("#111111");
+  const [dragMain, setDragMain] = useState(false);
+  const [dragGallery, setDragGallery] = useState(false);
 
   const merged: ProductPayload = { ...EMPTY, ...initialValues };
 
@@ -67,14 +117,26 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
     handleSubmit,
     control,
     watch,
+    getValues,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = form;
 
   const imageUrl = watch("image_url");
   const galleryUrls = watch("gallery_urls") ?? [];
   const mainDisplay = mainPreview || imageUrl;
   const colors = watch("colors") ?? [];
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  useEffect(() => {
+    if (!isDirty) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
 
   async function runUpload(file: File) {
     const fd = new FormData();
@@ -87,10 +149,7 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
     return res.url;
   }
 
-  async function onMainFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  async function processMainFile(file: File) {
     const blob = URL.createObjectURL(file);
     setMainPreview(blob);
     setUploadingMain(true);
@@ -107,27 +166,50 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
     }
   }
 
+  async function onMainFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await processMainFile(file);
+  }
+
   async function onGalleryFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!files.length) return;
+    enqueueGalleryFiles(files);
+  }
+
+  function enqueueGalleryFiles(files: File[]) {
+    const list = files.filter((f) => f.type.startsWith("image/"));
+    if (!list.length) {
+      toast.error("Selecione imagens para a galeria.");
+      return;
+    }
+
+    const next = list.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setQueuedGallery((q) => [...q, ...next]);
+    toast.success(`${next.length} imagem(ns) pronta(s) para envio.`);
+  }
+
+  async function uploadQueuedGallery() {
+    if (!queuedGallery.length) return;
     setUploadingGallery(true);
-    const next: string[] = [...galleryUrls];
+    const nextUrls: string[] = [...(getValues("gallery_urls") ?? [])];
     try {
-      for (const file of files) {
-        const id = crypto.randomUUID();
-        const preview = URL.createObjectURL(file);
-        setPendingGallery((p) => [...p, { id, preview }]);
-        try {
-          const url = await runUpload(file);
-          if (url) next.push(url);
-        } finally {
-          setPendingGallery((p) => p.filter((x) => x.id !== id));
-          URL.revokeObjectURL(preview);
-        }
+      for (const slot of queuedGallery) {
+        const url = await runUpload(slot.file);
+        if (url) nextUrls.push(url);
       }
-      setValue("gallery_urls", next, { shouldValidate: true });
-      toast.success(`${files.length} imagem(ns) na galeria.`);
+      setValue("gallery_urls", nextUrls, { shouldValidate: true, shouldDirty: true });
+      setQueuedGallery((q) => {
+        q.forEach((x) => URL.revokeObjectURL(x.preview));
+        return [];
+      });
+      toast.success("Galeria enviada.");
     } finally {
       setUploadingGallery(false);
     }
@@ -181,6 +263,31 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
       } else toast.error(r.error);
     }
   };
+
+  function onCancel() {
+    if (isDirty && !confirm("Você tem alterações não salvas. Deseja sair mesmo assim?")) return;
+    router.push("/admin/products");
+  }
+
+  function onGalleryDragEnd(ev: DragEndEvent) {
+    const { active, over } = ev;
+    if (!over || active.id === over.id) return;
+    const ids = galleryUrls.map((url) => `g:${url}`);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    setValue("gallery_urls", arrayMove(galleryUrls, from, to), { shouldValidate: true, shouldDirty: true });
+  }
+
+  function onQueueDragEnd(ev: DragEndEvent) {
+    const { active, over } = ev;
+    if (!over || active.id === over.id) return;
+    const ids = queuedGallery.map((x) => `q:${x.id}`);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    setQueuedGallery((q) => arrayMove(q, from, to));
+  }
 
   return (
     <>
@@ -368,7 +475,28 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
           <div className="mt-6 grid gap-8 lg:grid-cols-2">
             <div className="space-y-3">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Imagem principal</p>
-              <div className="relative aspect-[3/4] max-h-[320px] overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#111]">
+              <div
+                className={cn(
+                  "relative aspect-[3/4] max-h-[320px] overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#111] transition-shadow",
+                  dragMain && "ring-2 ring-[#F59E0B] ring-offset-2 ring-offset-[#0f0f0f]"
+                )}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragMain(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  setDragMain(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragMain(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) void processMainFile(f);
+                }}
+              >
                 {mainDisplay ? (
                   <AdminImage
                     src={mainDisplay}
@@ -383,7 +511,7 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
                   </div>
                 )}
               </div>
-              <input ref={mainInputRef} type="file" accept="image/*" className="hidden" onChange={onMainFile} />
+              <input ref={mainInputRef} type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={onMainFile} />
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -406,59 +534,110 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div
+              className={cn("space-y-3 rounded-2xl border border-transparent p-1 transition-colors", dragGallery && "border-[#F59E0B]/50 bg-[#F59E0B]/5")}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragGallery(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                setDragGallery(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragGallery(false);
+                const list = Array.from(e.dataTransfer.files ?? []).filter((f) => f.type.startsWith("image/"));
+                enqueueGalleryFiles(list);
+              }}
+            >
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Galeria (opcional)</p>
-              <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden" onChange={onGalleryFiles} />
-              <button
-                type="button"
-                disabled={uploadingGallery}
-                onClick={() => galleryInputRef.current?.click()}
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111] px-4 text-sm font-semibold text-zinc-200 transition-colors hover:border-[#F59E0B]/50 disabled:opacity-50 md:w-auto"
-              >
-                {uploadingGallery ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                Adicionar à galeria
-              </button>
-              <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                {galleryUrls.map((url, i) => (
-                  <li
-                    key={`saved-${i}-${url.slice(-32)}`}
-                    className="group relative aspect-square overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111]"
-                  >
-                    <AdminImage src={url} alt="" fill sizes="(max-width: 768px) 45vw, 160px" className="object-cover" />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setValue(
-                          "gallery_urls",
-                          galleryUrls.filter((_, j) => j !== i),
-                          { shouldValidate: true }
-                        )
-                      }
-                      className="absolute right-2 top-2 rounded-lg bg-black/70 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
-                      aria-label="Remover"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-                {pendingGallery.map((slot) => (
-                  <li
-                    key={slot.id}
-                    className="relative aspect-square overflow-hidden rounded-xl border border-[#F59E0B]/30 bg-[#111]"
-                  >
-                    <Image src={slot.preview} alt="" fill className="object-cover opacity-70" unoptimized />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/35">
-                      <Loader2 className="h-6 w-6 animate-spin text-[#F59E0B]" aria-hidden />
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-[11px] text-zinc-600">Arraste imagens aqui. Revise e reordene antes de enviar.</p>
+              <input ref={galleryInputRef} type="file" accept={IMAGE_ACCEPT} multiple className="hidden" onChange={onGalleryFiles} />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={uploadingGallery}
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111] px-4 text-sm font-semibold text-zinc-200 transition-colors hover:border-[#F59E0B]/50 disabled:opacity-50 md:w-auto"
+                >
+                  <Upload className="h-4 w-4" />
+                  Selecionar imagens
+                </button>
+                <button
+                  type="button"
+                  disabled={uploadingGallery || queuedGallery.length === 0}
+                  onClick={() => void uploadQueuedGallery()}
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#F59E0B] px-4 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50 md:w-auto"
+                >
+                  {uploadingGallery ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Enviar selecionadas ({queuedGallery.length})
+                </button>
+              </div>
+
+              {queuedGallery.length > 0 && (
+                <div className="rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                    Pré-envio (arraste para ordenar)
+                  </p>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onQueueDragEnd}>
+                    <SortableContext items={queuedGallery.map((x) => `q:${x.id}`)} strategy={rectSortingStrategy}>
+                      <ul className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                        {queuedGallery.map((slot) => (
+                          <li
+                            key={slot.id}
+                            className="group relative aspect-square overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111]"
+                          >
+                            <Image src={slot.preview} alt="" fill className="object-cover" unoptimized />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setQueuedGallery((q) => {
+                                  const found = q.find((x) => x.id === slot.id);
+                                  if (found) URL.revokeObjectURL(found.preview);
+                                  return q.filter((x) => x.id !== slot.id);
+                                })
+                              }
+                              className="absolute right-2 top-2 rounded-lg bg-black/70 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                              aria-label="Remover do envio"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              )}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onGalleryDragEnd}>
+                <SortableContext items={galleryUrls.map((u) => `g:${u}`)} strategy={rectSortingStrategy}>
+                  <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {galleryUrls.map((url) => (
+                      <SortableGalleryItem
+                        key={url}
+                        id={`g:${url}`}
+                        url={url}
+                        onRemove={() =>
+                          setValue(
+                            "gallery_urls",
+                            galleryUrls.filter((u) => u !== url),
+                            { shouldValidate: true, shouldDirty: true }
+                          )
+                        }
+                      />
+                    ))}
+                  </ul>
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
         </section>
       </form>
 
-      <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#2a2a2a] bg-[#0a0a0a]/95 px-3 py-3 backdrop-blur-md md:bottom-0 md:left-64 md:px-4 md:py-4">
+      <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#2a2a2a] bg-[#0a0a0a]/95 px-3 py-3 backdrop-blur-md md:bottom-0 md:left-[var(--admin-sidebar-width,16rem)] md:px-4 md:py-4">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <p className="hidden text-sm text-zinc-500 sm:block">
             {mode === "create" ? "Novo produto" : "Edição"} — alterações não salvas até confirmar.
@@ -466,7 +645,7 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
           <div className="flex w-full gap-2 sm:ml-auto sm:w-auto sm:gap-3">
             <button
               type="button"
-              onClick={() => router.push("/admin/products")}
+              onClick={onCancel}
               className="h-12 flex-1 rounded-xl border border-[#2a2a2a] px-4 text-sm font-semibold text-zinc-300 hover:bg-white/5 sm:flex-none sm:px-6"
             >
               Cancelar
