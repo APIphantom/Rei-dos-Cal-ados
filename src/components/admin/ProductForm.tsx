@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,6 +40,9 @@ const EMPTY: ProductPayload = {
   is_bestseller: false,
   stock_quantity: 0,
 };
+
+const FALLBACK_COLORS: ProductPayload["colors"] = [];
+const FALLBACK_SIZES: ProductPayload["sizes"] = [];
 
 function SortableGalleryItem({
   id,
@@ -105,7 +108,40 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
   const [dragMain, setDragMain] = useState(false);
   const [dragGallery, setDragGallery] = useState(false);
 
-  const merged: ProductPayload = { ...EMPTY, ...initialValues };
+  const merged = useMemo((): ProductPayload => {
+    const base: ProductPayload = {
+      ...EMPTY,
+      ...(initialValues ?? {}),
+    };
+    const rc = initialValues?.colors ?? [];
+    base.colors = rc.map((c) => ({
+      name: (c.name ?? "").trim(),
+      hex: c.hex ?? "#888888",
+      stock:
+        typeof c.stock === "number" && Number.isFinite(c.stock)
+          ? Math.max(0, Math.floor(c.stock))
+          : 0,
+    }));
+    const rs = initialValues?.sizes ?? [];
+    base.sizes = rs.map((z) => ({
+      label: (z.label ?? "").trim(),
+      stock:
+        typeof z.stock === "number" && Number.isFinite(z.stock)
+          ? Math.max(0, Math.floor(z.stock))
+          : 0,
+    }));
+    const sq = initialValues?.stock_quantity;
+    if (base.colors.length > 0) {
+      base.stock_quantity = base.colors.reduce((s, c) => s + c.stock, 0);
+    } else if (base.sizes.length > 0) {
+      base.stock_quantity = base.sizes.reduce((s, z) => s + z.stock, 0);
+    } else if (typeof sq === "number" && Number.isFinite(sq)) {
+      base.stock_quantity = Math.max(0, Math.floor(sq));
+    } else {
+      base.stock_quantity = 0;
+    }
+    return base;
+  }, [initialValues]);
 
   const form = useForm<ProductPayload>({
     resolver: zodResolver(productPayloadSchema),
@@ -125,8 +161,23 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
   const imageUrl = watch("image_url");
   const galleryUrls = watch("gallery_urls") ?? [];
   const mainDisplay = mainPreview || imageUrl;
-  const colors = watch("colors") ?? [];
+  const colors = watch("colors") ?? FALLBACK_COLORS;
+  const sizes = watch("sizes") ?? FALLBACK_SIZES;
+  const variantStockSum = useMemo(() => {
+    if (colors.length > 0) {
+      return colors.reduce((s, c) => s + Math.max(0, Math.floor(Number(c.stock) || 0)), 0);
+    }
+    if (sizes.length > 0) {
+      return sizes.reduce((s, z) => s + Math.max(0, Math.floor(Number(z.stock) || 0)), 0);
+    }
+    return 0;
+  }, [colors, sizes]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  useEffect(() => {
+    if (colors.length === 0 && sizes.length === 0) return;
+    setValue("stock_quantity", variantStockSum, { shouldValidate: true });
+  }, [colors.length, sizes.length, variantStockSum, setValue]);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -221,7 +272,12 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
       toast.error("Informe o nome da cor.");
       return;
     }
-    setValue("colors", [...colors, { name: n, hex: colorHex }], { shouldValidate: true });
+    const absorbGlobal = colors.length === 0 ? Math.max(0, Math.floor(Number(getValues("stock_quantity")) || 0)) : 0;
+    setValue(
+      "colors",
+      [...colors, { name: n, hex: colorHex, stock: absorbGlobal }],
+      { shouldValidate: true, shouldDirty: true }
+    );
     setColorName("");
     setColorHex("#111111");
   }
@@ -230,21 +286,55 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
     setValue(
       "colors",
       colors.filter((_, j) => j !== i),
-      { shouldValidate: true }
+      { shouldValidate: true, shouldDirty: true }
     );
   }
 
-  function toggleSize(s: string) {
-    const sizes = watch("sizes") ?? [];
-    if (sizes.includes(s)) {
+  function updateColorStock(i: number, raw: number) {
+    const q = Math.max(0, Math.floor(Number.isFinite(raw) ? raw : 0));
+    setValue(
+      "colors",
+      colors.map((c, j) => (j === i ? { ...c, stock: q } : c)),
+      { shouldValidate: true, shouldDirty: true }
+    );
+  }
+
+  function toggleSizeChip(label: string) {
+    const list = sizes;
+    const idx = list.findIndex((x) => x.label === label);
+    if (idx >= 0) {
       setValue(
         "sizes",
-        sizes.filter((x) => x !== s),
-        { shouldValidate: true }
+        list.filter((_, i) => i !== idx),
+        { shouldValidate: true, shouldDirty: true }
       );
     } else {
-      setValue("sizes", [...sizes, s].sort((a, b) => Number(a) - Number(b)), { shouldValidate: true });
+      const absorb = list.length === 0 ? Math.max(0, Math.floor(Number(getValues("stock_quantity")) || 0)) : 0;
+      setValue(
+        "sizes",
+        [...list, { label, stock: absorb }].sort((a, b) =>
+          a.label.localeCompare(b.label, "pt-BR", { numeric: true })
+        ),
+        { shouldValidate: true, shouldDirty: true }
+      );
     }
+  }
+
+  function updateSizeStock(i: number, raw: number) {
+    const q = Math.max(0, Math.floor(Number.isFinite(raw) ? raw : 0));
+    setValue(
+      "sizes",
+      sizes.map((z, j) => (j === i ? { ...z, stock: q } : z)),
+      { shouldValidate: true, shouldDirty: true }
+    );
+  }
+
+  function removeSizeRow(i: number) {
+    setValue(
+      "sizes",
+      sizes.filter((_, j) => j !== i),
+      { shouldValidate: true, shouldDirty: true }
+    );
   }
 
   const onValid = async (data: ProductPayload) => {
@@ -347,19 +437,27 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
               {errors.price && <p className="text-xs text-red-400">{errors.price.message}</p>}
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Estoque (unidades)</label>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                {...register("stock_quantity", { valueAsNumber: true })}
-                className="h-12 w-full rounded-xl border border-[#2a2a2a] bg-[#111] px-4 text-sm text-white outline-none focus:border-[#F59E0B]"
-              />
-              {errors.stock_quantity && (
-                <p className="text-xs text-red-400">{errors.stock_quantity.message}</p>
-              )}
-            </div>
+            {colors.length === 0 && sizes.length === 0 && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  Estoque (unidades) — produto único
+                </label>
+                <p className="text-[11px] text-zinc-600">
+                  Se definir <strong className="text-zinc-400">tamanhos</strong> ou <strong className="text-zinc-400">cores</strong> abaixo, o
+                  total deixa de ser manual e passa a ser a soma por variação.
+                </p>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  {...register("stock_quantity", { valueAsNumber: true })}
+                  className="h-12 w-full rounded-xl border border-[#2a2a2a] bg-[#111] px-4 text-sm text-white outline-none focus:border-[#F59E0B]"
+                />
+                {errors.stock_quantity && (
+                  <p className="text-xs text-red-400">{errors.stock_quantity.message}</p>
+                )}
+              </div>
+            )}
 
             <div className="md:col-span-2 space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Descrição</label>
@@ -396,19 +494,26 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
 
         <section className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-6 md:p-8">
           <h2 className="font-heading text-lg font-bold text-white">Variações</h2>
-          <p className="mt-1 text-sm text-zinc-500">Tamanhos e cores disponíveis.</p>
+          <p className="mt-1 text-sm text-zinc-500">
+            Com <strong className="text-zinc-400">cores</strong>, o estoque é por cor. Sem cores, pode ser por <strong className="text-zinc-400">tamanho</strong>. O total gravado corresponde à soma das variações ativas.
+          </p>
 
           <div className="mt-6 space-y-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Tamanhos</p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                {colors.length > 0
+                  ? "Toque nos números para incluir o tamanho na ficha (estoque conta na cor)."
+                  : "Toque para adicionar; em seguida informe o estoque por linha."}
+              </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {SHOE_SIZES.map((s) => {
-                  const active = (watch("sizes") ?? []).includes(s);
+                  const active = sizes.some((x) => x.label === s);
                   return (
                     <button
                       key={s}
                       type="button"
-                      onClick={() => toggleSize(s)}
+                      onClick={() => toggleSizeChip(s)}
                       className={cn(
                         "h-10 min-w-[44px] rounded-xl border px-3 text-sm font-semibold transition-colors",
                         active
@@ -421,6 +526,48 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
                   );
                 })}
               </div>
+              {colors.length === 0 && sizes.length > 0 && (
+                <>
+                  <ul className="mt-4 space-y-2">
+                    {sizes.map((z, i) => (
+                      <li
+                        key={`${z.label}-${i}`}
+                        className="flex flex-wrap items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#111] px-3 py-2 text-sm text-zinc-200"
+                      >
+                        <span className="min-w-[3rem] font-heading text-lg font-bold text-[#F59E0B]">{z.label}</span>
+                        <label className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-zinc-500">
+                          Estoque
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={Number.isFinite(z.stock) ? z.stock : 0}
+                            onChange={(e) => updateSizeStock(i, Number(e.target.value))}
+                            className="h-10 w-[5.5rem] rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] px-2 text-center text-sm text-white outline-none focus:border-[#F59E0B]"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeSizeRow(i)}
+                          className="ml-auto shrink-0 p-2 text-zinc-500 hover:text-red-400"
+                          aria-label={`Remover tamanho ${z.label}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-4 rounded-xl border border-dashed border-[#2a2a2a] bg-[#0a0a0a] px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                      Total em estoque (soma dos tamanhos)
+                    </p>
+                    <p className="mt-1 font-heading text-2xl font-bold tabular-nums text-white">
+                      {sizes.reduce((s, z) => s + Math.max(0, Math.floor(Number(z.stock) || 0)), 0)}{" "}
+                      <span className="text-sm font-semibold text-zinc-400">unidades</span>
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <div>
@@ -449,20 +596,54 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
                 </button>
               </div>
               {colors.length > 0 && (
-                <ul className="mt-4 flex flex-wrap gap-2">
-                  {colors.map((c, i) => (
-                    <li
-                      key={`${c.name}-${i}`}
-                      className="flex items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111] py-1.5 pl-3 pr-2 text-sm text-zinc-200"
-                    >
-                      <span className="h-4 w-4 rounded-full border border-white/20" style={{ backgroundColor: c.hex }} />
-                      {c.name}
-                      <button type="button" onClick={() => removeColor(i)} className="p-1 text-zinc-500 hover:text-red-400">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="mt-4 space-y-2">
+                    {colors.map((c, i) => (
+                      <li
+                        key={`${c.name}-${i}`}
+                        className="flex flex-wrap items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#111] px-3 py-2 text-sm text-zinc-200"
+                      >
+                        <span
+                          className="h-5 w-5 shrink-0 rounded-full border border-white/20"
+                          style={{ backgroundColor: c.hex }}
+                          aria-hidden
+                        />
+                        <span className="min-w-[100px] flex-1 font-medium">{c.name}</span>
+                        <label className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-zinc-500">
+                          Estoque
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={Number.isFinite(c.stock) ? c.stock : 0}
+                            onChange={(e) => updateColorStock(i, Number(e.target.value))}
+                            className="h-10 w-[5.5rem] rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] px-2 text-center text-sm text-white outline-none focus:border-[#F59E0B]"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeColor(i)}
+                          className="shrink-0 p-2 text-zinc-500 hover:text-red-400"
+                          aria-label={`Remover cor ${c.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-4 rounded-xl border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#F59E0B]">
+                      Total em estoque (validação)
+                    </p>
+                    <p className="mt-1 font-heading text-2xl font-bold tabular-nums text-white">
+                      {colors.reduce((s, c) => s + Math.max(0, Math.floor(Number(c.stock) || 0)), 0)}{" "}
+                      <span className="text-sm font-semibold text-zinc-400">unidades</span>
+                    </p>
+                    <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+                      Este número é gravado como estoque total do produto e deve igualar à soma das cores.
+                    </p>
+                  </div>
+                </>
               )}
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { AdminImage } from "@/components/ui/admin-image";
 import { MessageCircle, Package, ShoppingBag, Sparkles } from "lucide-react";
 import type { Product } from "@/types/product";
@@ -9,24 +10,74 @@ import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { formatBRL } from "@/lib/money";
 import { useStorePublicSettings } from "@/contexts/store-public-context";
-import { buildProductWhatsAppUrl } from "@/lib/whatsapp";
+import { buildProductEncomendaUrl, buildProductWhatsAppUrl } from "@/lib/whatsapp";
 import { useCartStore } from "@/features/cart/store";
 import { ProductCard } from "./ProductCard";
 
 export function ProductDetail({ product, related }: { product: Product; related: Product[] }) {
   const { whatsappE164 } = useStorePublicSettings();
   const [activeImage, setActiveImage] = useState(product.images[0] ?? product.imageUrl);
-  const [size, setSize] = useState(product.sizes[0] ?? "");
+  const hasSizes = product.sizes.length > 0;
+  const hasColors = product.colors.length > 0;
+  const noVariants = !hasSizes && !hasColors;
+
+  const [size, setSize] = useState(product.sizes[0]?.label ?? "");
   const [color, setColor] = useState(product.colors[0]?.name ?? "");
 
   const add = useCartStore((s) => s.add);
 
-  const whatsappUrl = useMemo(() => {
-    if (!size || !color) return "";
-    return buildProductWhatsAppUrl({ product, size, color, whatsappE164 });
-  }, [product, size, color, whatsappE164]);
+  const variantStock = useMemo(() => {
+    if (noVariants) return product.stockQuantity ?? 0;
+    if (hasColors && !color) return 0;
+    if (hasSizes && !size) return 0;
+    if (hasColors && color) {
+      const c = product.colors.find((x) => x.name === color);
+      return c?.stock ?? 0;
+    }
+    if (!hasColors && hasSizes && size) {
+      const z = product.sizes.find((x) => x.label === size);
+      return z?.stock ?? 0;
+    }
+    return product.stockQuantity ?? 0;
+  }, [product, color, size, hasColors, hasSizes, noVariants]);
 
-  const stock = product.stockQuantity ?? 0;
+  const whatsappUrl = useMemo(() => {
+    if (noVariants) {
+      return buildProductEncomendaUrl(product, whatsappE164);
+    }
+    const needSize = hasSizes && !size;
+    const needColor = hasColors && !color;
+    if (needSize || needColor) return "";
+    return buildProductWhatsAppUrl({
+      product,
+      size: size || undefined,
+      color: color || undefined,
+      whatsappE164,
+    });
+  }, [product, size, color, whatsappE164, noVariants, hasSizes, hasColors]);
+
+  function handleBuy() {
+    if (!noVariants) {
+      if (hasSizes && !size) {
+        toast.error("Selecione o tamanho.");
+        return;
+      }
+      if (hasColors && !color) {
+        toast.error("Selecione a cor.");
+        return;
+      }
+      if (variantStock <= 0) {
+        toast.error("Sem estoque nesta variação. Use Encomendar.");
+        return;
+      }
+    } else if (variantStock <= 0) {
+      toast.error("Sem estoque no momento. Use Encomendar.");
+      return;
+    }
+    add(product, size || "—", color || "—");
+  }
+
+  const encomendaHref = buildProductEncomendaUrl(product, whatsappE164);
 
   return (
     <>
@@ -100,84 +151,155 @@ export function ProductDetail({ product, related }: { product: Product; related:
               <div className="typo-small flex flex-wrap items-center gap-3">
                 <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
                   <Package className="h-3.5 w-3.5 text-primary" />
-                  Estoque: <strong className="text-foreground">{stock} un.</strong>
+                  {noVariants && (
+                    <>
+                      Estoque: <strong className="text-foreground">{variantStock} un.</strong>
+                    </>
+                  )}
+                  {!noVariants && hasColors && color && (
+                    <>
+                      Nesta cor: <strong className="text-foreground">{variantStock} un.</strong>
+                    </>
+                  )}
+                  {!noVariants && !hasColors && hasSizes && size && (
+                    <>
+                      Neste tamanho: <strong className="text-foreground">{variantStock} un.</strong>
+                    </>
+                  )}
+                  {!noVariants && !(hasColors && color) && !(!hasColors && hasSizes && size) && (
+                    <span className="text-muted-foreground">
+                      Selecione {hasColors ? "a cor" : ""}
+                      {hasColors && hasSizes ? " e " : ""}
+                      {hasSizes ? "o tamanho" : ""} para ver o estoque da variação.
+                    </span>
+                  )}
                 </span>
               </div>
 
               <div className="space-y-5 rounded-3xl border border-border bg-card p-6">
-                <div className="space-y-2">
-                  <p className="typo-label">Tamanho</p>
-                  <div className="flex flex-wrap gap-2">
-                    {product.sizes.map((s) => (
+                {hasSizes && (
+                  <div className="space-y-2">
+                    <p className="typo-label">Tamanho</p>
+                    <div className="flex flex-wrap gap-2">
+                      {product.sizes.map((s) => (
+                        <button
+                          key={s.label}
+                          type="button"
+                          onClick={() => setSize(s.label)}
+                          className={[
+                            "typo-btn h-10 rounded-xl border px-4 transition-colors",
+                            s.label === size
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background/40 hover:border-primary/60",
+                          ].join(" ")}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {hasColors && (
+                  <div className="space-y-2">
+                    <p className="typo-label">Cor</p>
+                    <div className="flex flex-wrap gap-2">
+                      {product.colors.map((c) => (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => setColor(c.name)}
+                          className={[
+                            "typo-btn inline-flex h-10 items-center gap-2 rounded-xl border px-4 transition-colors",
+                            c.name === color
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background/40 hover:border-primary/60",
+                          ].join(" ")}
+                        >
+                          <span
+                            className="h-3 w-3 rounded-full border border-border"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {noVariants ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <a
+                      href={encomendaHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="typo-btn inline-flex h-12 items-center justify-center gap-2 rounded-xl border-2 border-primary bg-primary/10 px-6 text-primary transition-colors hover:bg-primary/20"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Encomendar
+                    </a>
+                    <button
+                      type="button"
+                      disabled={variantStock <= 0}
+                      onClick={handleBuy}
+                      className="typo-btn inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-primary-foreground transition-transform enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ShoppingBag className="h-4 w-4" />
+                      Adicionar ao carrinho
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid gap-3 md:grid-cols-2">
                       <button
-                        key={s}
                         type="button"
-                        onClick={() => setSize(s)}
+                        onClick={handleBuy}
+                        disabled={
+                          variantStock <= 0 || (hasSizes && !size) || (hasColors && !color)
+                        }
+                        className="typo-btn inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-primary-foreground transition-transform enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <ShoppingBag className="h-4 w-4" />
+                        Comprar agora
+                      </button>
+
+                      <a
+                        href={whatsappUrl || undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-disabled={!whatsappUrl}
                         className={[
-                          "typo-btn h-10 rounded-xl border px-4 transition-colors",
-                          s === size
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-background/40 hover:border-primary/60",
+                          "typo-btn inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-background/40 px-6 transition-colors",
+                          whatsappUrl ? "hover:border-primary/60" : "pointer-events-none opacity-50",
                         ].join(" ")}
                       >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        <MessageCircle className="h-4 w-4 text-primary" />
+                        Falar no WhatsApp
+                      </a>
+                    </div>
 
-                <div className="space-y-2">
-                  <p className="typo-label">Cor</p>
-                  <div className="flex flex-wrap gap-2">
-                    {product.colors.map((c) => (
-                      <button
-                        key={c.name}
-                        type="button"
-                        onClick={() => setColor(c.name)}
-                        className={[
-                          "typo-btn inline-flex h-10 items-center gap-2 rounded-xl border px-4 transition-colors",
-                          c.name === color
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-background/40 hover:border-primary/60",
-                        ].join(" ")}
-                      >
-                        <span
-                          className="h-3 w-3 rounded-full border border-border"
-                          style={{ backgroundColor: c.hex }}
-                        />
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    {!noVariants &&
+                      variantStock <= 0 &&
+                      (!hasSizes || !!size) &&
+                      (!hasColors || !!color) && (
+                        <a
+                          href={encomendaHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="typo-btn flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-primary/50 bg-transparent px-4 text-sm text-primary hover:bg-primary/10"
+                        >
+                          Encomendar (sem estoque nesta variação)
+                        </a>
+                      )}
+                  </>
+                )}
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => add(product, size, color)}
-                    className="typo-btn inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-primary-foreground transition-transform active:scale-[0.98]"
-                  >
-                    <ShoppingBag className="h-4 w-4" />
-                    Comprar agora
-                  </button>
-
-                  <a
-                    href={whatsappUrl || undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-disabled={!whatsappUrl}
-                    className={[
-                      "typo-btn inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-background/40 px-6 transition-colors",
-                      whatsappUrl ? "hover:border-primary/60" : "pointer-events-none opacity-50",
-                    ].join(" ")}
-                  >
-                    <MessageCircle className="h-4 w-4 text-primary" />
-                    Falar no WhatsApp
-                  </a>
-                </div>
-
-                {!whatsappUrl && (
-                  <p className="text-xs text-muted-foreground">Selecione tamanho e cor para abrir o WhatsApp.</p>
+                {!noVariants && !whatsappUrl && (
+                  <p className="text-xs text-muted-foreground">
+                    Selecione {hasSizes ? "tamanho" : ""}
+                    {hasSizes && hasColors ? " e " : ""}
+                    {hasColors ? "cor" : ""} para abrir o WhatsApp com os detalhes.
+                  </p>
                 )}
 
                 <p className="text-xs text-muted-foreground">

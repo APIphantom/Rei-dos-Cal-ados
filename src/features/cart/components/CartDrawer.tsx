@@ -7,6 +7,8 @@ import { Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { formatBRL } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { useCartStore, useCartTotals } from "@/features/cart/store";
+import { formatCartVariantLabel } from "@/features/cart/variant-label";
+import { maxQtyForCartLine } from "@/features/cart/variant-stock";
 
 export function CartDrawer() {
   const isOpen = useCartStore((s) => s.isOpen);
@@ -62,7 +64,11 @@ export function CartDrawer() {
             ) : (
               <>
                 <div className="flex-1 space-y-5 overflow-y-auto p-6">
-                  {lines.map((line) => (
+                  {lines.map((line) => {
+                    const variantLabel = formatCartVariantLabel(line.size, line.color);
+                    const maxQ = maxQtyForCartLine(line.product, line.size, line.color);
+                    const atStockCap = maxQ > 0 && line.quantity >= maxQ;
+                    return (
                     <div
                       key={`${line.product.id}-${line.size}-${line.color}`}
                       className="flex gap-4"
@@ -81,9 +87,9 @@ export function CartDrawer() {
                           {line.product.brand}
                         </p>
                         <p className="truncate text-sm font-medium">{line.product.name}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {line.size} · {line.color}
-                        </p>
+                        {variantLabel ? (
+                          <p className="mt-0.5 text-xs text-muted-foreground">{variantLabel}</p>
+                        ) : null}
 
                         <div className="mt-3 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2">
@@ -102,10 +108,22 @@ export function CartDrawer() {
                               {line.quantity}
                             </span>
                             <button
+                              type="button"
+                              disabled={atStockCap || maxQ <= 0}
+                              title={
+                                atStockCap
+                                  ? "Quantidade máxima em stock para esta variação"
+                                  : maxQ <= 0
+                                    ? "Sem stock nesta variação"
+                                    : undefined
+                              }
                               onClick={() =>
                                 setQty(line.product.id, line.size, line.color, line.quantity + 1)
                               }
-                              className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-background/40 transition-colors hover:border-foreground/60"
+                              className={cn(
+                                "grid h-8 w-8 place-items-center rounded-lg border border-border bg-background/40 transition-colors hover:border-foreground/60",
+                                (atStockCap || maxQ <= 0) && "cursor-not-allowed opacity-40"
+                              )}
                               aria-label="Aumentar quantidade"
                             >
                               <Plus className="h-4 w-4" />
@@ -127,7 +145,8 @@ export function CartDrawer() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="space-y-4 border-t border-border p-6">

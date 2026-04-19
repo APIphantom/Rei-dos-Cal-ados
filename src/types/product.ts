@@ -1,4 +1,6 @@
-export type ProductColor = { name: string; hex: string };
+export type ProductColor = { name: string; hex: string; /** Unidades disponíveis nesta cor */ stock: number };
+
+export type ProductSize = { label: string; stock: number };
 
 export type Product = {
   id: string;
@@ -9,7 +11,7 @@ export type Product = {
   price: number;
   imageUrl: string;
   images: string[];
-  sizes: string[];
+  sizes: ProductSize[];
   colors: ProductColor[];
   category: string;
   brand: string;

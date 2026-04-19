@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Product } from "@/types/product";
+import { maxQtyForCartLine, sanitizeCartLines } from "@/features/cart/variant-stock";
 import type { CartLine } from "./types";
 
 type CartState = {
@@ -21,6 +22,23 @@ function keyOf(productId: string, size: string, color: string) {
   return `${productId}__${size}__${color}`;
 }
 
+function linesFromPersistPayload(persistedState: unknown): CartLine[] | undefined {
+  if (!persistedState || typeof persistedState !== "object") return undefined;
+  const o = persistedState as Record<string, unknown>;
+  if (Array.isArray(o.lines)) return o.lines as CartLine[];
+  if (o.state && typeof o.state === "object") {
+    const st = o.state as Record<string, unknown>;
+    if (Array.isArray(st.lines)) return st.lines as CartLine[];
+  }
+  return undefined;
+}
+
+function mergePersistedCart(persistedState: unknown, currentState: CartState): CartState {
+  const raw = linesFromPersistPayload(persistedState);
+  const lines = raw !== undefined ? sanitizeCartLines(raw) : currentState.lines;
+  return { ...currentState, lines };
+}
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -33,15 +51,24 @@ export const useCartStore = create<CartState>()(
         const k = keyOf(product.id, size, color);
         const existing = get().lines.find((l) => keyOf(l.product.id, l.size, l.color) === k);
         if (existing) {
+          const cap = maxQtyForCartLine(product, size, color);
+          const next = Math.min(existing.quantity + 1, cap);
+          if (cap <= 0 || next <= 0) return;
+          if (next === existing.quantity) return;
           set({
             lines: get().lines.map((l) =>
-              keyOf(l.product.id, l.size, l.color) === k ? { ...l, quantity: l.quantity + 1 } : l
+              keyOf(l.product.id, l.size, l.color) === k ? { ...l, product, quantity: next } : l
             ),
             isOpen: true,
           });
           return;
         }
-        set({ lines: [...get().lines, { product, size, color, quantity: 1 }], isOpen: true });
+        const max = maxQtyForCartLine(product, size, color);
+        if (max <= 0) return;
+        set({
+          lines: [...get().lines, { product, size, color, quantity: Math.min(1, max) }],
+          isOpen: true,
+        });
       },
       remove: (productId, size, color) => {
         const k = keyOf(productId, size, color);
@@ -53,9 +80,21 @@ export const useCartStore = create<CartState>()(
           return;
         }
         const k = keyOf(productId, size, color);
+        const line = get().lines.find((l) => keyOf(l.product.id, l.size, l.color) === k);
+        if (!line) return;
+        const max = maxQtyForCartLine(line.product, size, color);
+        if (max <= 0) {
+          get().remove(productId, size, color);
+          return;
+        }
+        const next = Math.min(Math.floor(qty), max);
+        if (next <= 0) {
+          get().remove(productId, size, color);
+          return;
+        }
         set({
           lines: get().lines.map((l) =>
-            keyOf(l.product.id, l.size, l.color) === k ? { ...l, quantity: qty } : l
+            keyOf(l.product.id, l.size, l.color) === k ? { ...l, quantity: next } : l
           ),
         });
       },
@@ -64,6 +103,7 @@ export const useCartStore = create<CartState>()(
     {
       name: "rdc_cart_v1",
       partialize: (state) => ({ lines: state.lines }),
+      merge: mergePersistedCart,
     }
   )
 );

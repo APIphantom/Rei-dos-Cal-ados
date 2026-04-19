@@ -1,7 +1,9 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Product, ProductColor } from "@/types/product";
+import type { Product, ProductColor, ProductSize } from "@/types/product";
+import { mergeLegacyStockIntoColors, parseColorDbToken, sumColorStocks } from "@/lib/product-colors-db";
+import { mergeLegacyStockIntoSizes, parseSizeDbToken, sumSizeStocks } from "@/lib/product-sizes-db";
 
 export type ProductRow = {
   id: string;
@@ -21,27 +23,32 @@ export type ProductRow = {
   created_at: string;
 };
 
-function parseColorToken(raw: string): ProductColor | null {
-  const t = raw.trim();
-  if (!t) return null;
-  const parts = t.split("|");
-  if (parts.length >= 2) {
-    const name = parts[0]?.trim() ?? "";
-    const hex = parts[1]?.trim() ?? "#888888";
-    if (!name) return null;
-    return { name, hex: hex.startsWith("#") ? hex : `#${hex}` };
-  }
-  return { name: t, hex: "#737373" };
+function mapColors(arr: string[] | null, legacyRowTotal: number): ProductColor[] {
+  if (!arr?.length) return [];
+  const mapped = arr.map(parseColorDbToken).filter((c): c is ProductColor => c !== null);
+  return mergeLegacyStockIntoColors(mapped, legacyRowTotal);
 }
 
-function mapColors(arr: string[] | null): ProductColor[] {
+function mapSizes(arr: string[] | null, legacyRowTotal: number): ProductSize[] {
   if (!arr?.length) return [];
-  return arr.map(parseColorToken).filter((c): c is ProductColor => c !== null);
+  const mapped = arr.map(parseSizeDbToken).filter((s): s is ProductSize => s !== null);
+  return mergeLegacyStockIntoSizes(mapped, legacyRowTotal);
 }
 
 export function mapRow(row: ProductRow): Product {
   const gallery = row.gallery_urls?.filter(Boolean) ?? [];
   const images = gallery.length > 0 ? [row.image_url, ...gallery] : [row.image_url];
+  const rowTotal = Math.max(0, Number(row.stock_quantity ?? 0));
+  const colors = mapColors(row.colors, rowTotal);
+  const sizes = mapSizes(row.sizes, rowTotal);
+
+  let stockQuantity = rowTotal;
+  if (colors.length > 0) {
+    stockQuantity = sumColorStocks(colors);
+  } else if (sizes.length > 0) {
+    stockQuantity = sumSizeStocks(sizes);
+  }
+
   return {
     id: row.id,
     name: row.name,
@@ -50,14 +57,14 @@ export function mapRow(row: ProductRow): Product {
     price: Number(row.price),
     imageUrl: row.image_url,
     images,
-    sizes: row.sizes ?? [],
-    colors: mapColors(row.colors),
+    sizes,
+    colors,
     category: row.category,
     brand: row.brand,
     tags: row.tags?.filter(Boolean) ?? [],
     isFeatured: row.is_featured ?? false,
     isBestseller: row.is_bestseller ?? false,
-    stockQuantity: Math.max(0, Number(row.stock_quantity ?? 0)),
+    stockQuantity,
   };
 }
 

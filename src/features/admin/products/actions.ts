@@ -4,22 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { mapStorageUploadError } from "@/lib/storage-errors";
 import { getSessionUser, getProfileForUser } from "@/lib/auth/server";
 import { getPayloadErrorMessage, productPayloadSchema, type ProductPayload } from "@/features/admin/products/schema";
-
-function normalizeHex(raw: string): string {
-  const t = raw.trim();
-  if (!t) return "#888888";
-  if (t.startsWith("#")) {
-    if (t.length === 4) {
-      const r = t[1] ?? "0";
-      const g = t[2] ?? "0";
-      const b = t[3] ?? "0";
-      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
-    }
-    return t.length >= 7 ? t.slice(0, 7).toUpperCase() : "#888888";
-  }
-  const only = t.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6).padEnd(6, "0");
-  return `#${only}`.toUpperCase();
-}
+import { formatColorDbToken, sumColorStocks } from "@/lib/product-colors-db";
+import { formatSizeDbToken, sumSizeStocks } from "@/lib/product-sizes-db";
 
 async function requireAdmin() {
   const user = await getSessionUser();
@@ -29,7 +15,17 @@ async function requireAdmin() {
 }
 
 function colorsToDb(colors: ProductPayload["colors"]): string[] {
-  return colors.map((c) => `${c.name.trim()}|${normalizeHex(c.hex)}`);
+  return colors.map((c) => formatColorDbToken(c));
+}
+
+function sizesToDb(sizes: ProductPayload["sizes"]): string[] {
+  return sizes.map((s) => formatSizeDbToken(s));
+}
+
+function totalStockFromPayload(p: ProductPayload): number {
+  if (p.colors.length > 0) return sumColorStocks(p.colors);
+  if (p.sizes.length > 0) return sumSizeStocks(p.sizes);
+  return Math.max(0, Math.floor(Number(p.stock_quantity)));
 }
 
 function galleryFromPayload(urls: string[], main: string): string[] {
@@ -103,6 +99,7 @@ export async function createProductPayload(
 
   const p = parsed.data;
   const gallery = galleryFromPayload(p.gallery_urls, p.image_url);
+  const stockQuantity = totalStockFromPayload(p);
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -116,11 +113,11 @@ export async function createProductPayload(
       image_url: p.image_url,
       gallery_urls: gallery,
       tags: p.tags,
-      sizes: p.sizes,
+      sizes: sizesToDb(p.sizes),
       colors: colorsToDb(p.colors),
       is_featured: p.is_featured,
       is_bestseller: p.is_bestseller,
-      stock_quantity: p.stock_quantity,
+      stock_quantity: stockQuantity,
     })
     .select("id")
     .single();
@@ -150,6 +147,7 @@ export async function updateProductPayload(
 
   const p = parsed.data;
   const gallery = galleryFromPayload(p.gallery_urls, p.image_url);
+  const stockQuantity = totalStockFromPayload(p);
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -163,11 +161,11 @@ export async function updateProductPayload(
       image_url: p.image_url,
       gallery_urls: gallery,
       tags: p.tags,
-      sizes: p.sizes,
+      sizes: sizesToDb(p.sizes),
       colors: colorsToDb(p.colors),
       is_featured: p.is_featured,
       is_bestseller: p.is_bestseller,
-      stock_quantity: p.stock_quantity,
+      stock_quantity: stockQuantity,
     })
     .eq("id", id);
 

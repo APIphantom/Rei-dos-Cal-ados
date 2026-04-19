@@ -6,6 +6,8 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { formatBRL } from "@/lib/money";
+import { formatCartVariantLabel } from "@/features/cart/variant-label";
+import { maxQtyForCartLine } from "@/features/cart/variant-stock";
 import { useCartStore, useCartTotals } from "@/features/cart/store";
 
 export default function CartPage() {
@@ -47,7 +49,11 @@ export default function CartPage() {
         ) : (
           <div className="grid min-w-0 gap-8 lg:grid-cols-[1fr_420px]">
             <div className="min-w-0 space-y-4">
-              {lines.map((line) => (
+              {lines.map((line) => {
+                const variantLabel = formatCartVariantLabel(line.size, line.color);
+                const maxQ = maxQtyForCartLine(line.product, line.size, line.color);
+                const atStockCap = maxQ > 0 && line.quantity >= maxQ;
+                return (
                 <div
                   key={`${line.product.id}-${line.size}-${line.color}`}
                   className="flex gap-4 rounded-3xl border border-border bg-card p-5"
@@ -66,9 +72,9 @@ export default function CartPage() {
                       {line.product.brand}
                     </p>
                     <p className="truncate text-sm font-medium">{line.product.name}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {line.size} · {line.color}
-                    </p>
+                    {variantLabel ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{variantLabel}</p>
+                    ) : null}
 
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-2">
@@ -85,10 +91,19 @@ export default function CartPage() {
                           {line.quantity}
                         </span>
                         <button
+                          type="button"
+                          disabled={atStockCap || maxQ <= 0}
+                          title={
+                            atStockCap
+                              ? "Quantidade máxima em stock para esta variação"
+                              : maxQ <= 0
+                                ? "Sem stock nesta variação"
+                                : undefined
+                          }
                           onClick={() =>
                             setQty(line.product.id, line.size, line.color, line.quantity + 1)
                           }
-                          className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-background/40 hover:border-primary/60"
+                          className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-background/40 hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label="Aumentar quantidade"
                         >
                           <Plus className="h-4 w-4" />
@@ -110,7 +125,8 @@ export default function CartPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             <aside className="h-fit min-w-0 rounded-3xl border border-border bg-card p-6">

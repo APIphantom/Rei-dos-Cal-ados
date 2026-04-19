@@ -9,12 +9,20 @@ export const productPayloadSchema = z.object({
   image_url: z.string().min(1).refine((s) => /^https?:\/\//i.test(s), "URL da imagem inválida"),
   gallery_urls: z.array(z.string()).default([]),
   tags: z.array(z.string().min(1)).default([]),
-  sizes: z.array(z.string()).default([]),
+  sizes: z
+    .array(
+      z.object({
+        label: z.string().min(1),
+        stock: z.number().int().min(0).default(0),
+      })
+    )
+    .default([]),
   colors: z
     .array(
       z.object({
         name: z.string().min(1),
         hex: z.string().min(1),
+        stock: z.number().int().min(0).default(0),
       })
     )
     .default([]),

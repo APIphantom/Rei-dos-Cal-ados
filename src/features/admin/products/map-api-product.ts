@@ -1,4 +1,6 @@
 import type { ProductPayload } from "@/features/admin/products/schema";
+import { mergeLegacyStockIntoColors, parseColorDbToken, sumColorStocks } from "@/lib/product-colors-db";
+import { mergeLegacyStockIntoSizes, parseSizeDbToken, sumSizeStocks } from "@/lib/product-sizes-db";
 
 /** Resposta de GET /api/admin/products/[id] — linha crua do Supabase */
 export type AdminApiProductRow = {
@@ -18,23 +20,24 @@ export type AdminApiProductRow = {
   stock_quantity: number | null;
 };
 
-function parseColorToken(raw: string): { name: string; hex: string } | null {
-  const t = raw.trim();
-  if (!t) return null;
-  const parts = t.split("|");
-  if (parts.length >= 2) {
-    const name = parts[0]?.trim() ?? "";
-    let hex = parts[1]?.trim() ?? "#111111";
-    if (!name) return null;
-    if (!hex.startsWith("#")) hex = `#${hex}`;
-    return { name, hex };
-  }
-  return { name: t, hex: "#737373" };
-}
-
 export function adminApiProductToPayload(row: AdminApiProductRow): Partial<ProductPayload> {
   const gallery = row.gallery_urls?.filter(Boolean) ?? [];
-  const colorObjs = (row.colors ?? []).map(parseColorToken).filter((c): c is NonNullable<typeof c> => c !== null);
+  const rowTotal = Math.max(0, Number(row.stock_quantity ?? 0));
+  let colorObjs = (row.colors ?? [])
+    .map(parseColorDbToken)
+    .filter((c): c is NonNullable<typeof c> => c !== null);
+  colorObjs = mergeLegacyStockIntoColors(colorObjs, rowTotal);
+  let sizeObjs = (row.sizes ?? [])
+    .map(parseSizeDbToken)
+    .filter((s): s is NonNullable<typeof s> => s !== null);
+  sizeObjs = mergeLegacyStockIntoSizes(sizeObjs, rowTotal);
+
+  let stockQuantity = rowTotal;
+  if (colorObjs.length > 0) {
+    stockQuantity = sumColorStocks(colorObjs);
+  } else if (sizeObjs.length > 0) {
+    stockQuantity = sumSizeStocks(sizeObjs);
+  }
 
   return {
     brand: row.brand,
@@ -45,10 +48,10 @@ export function adminApiProductToPayload(row: AdminApiProductRow): Partial<Produ
     image_url: row.image_url,
     gallery_urls: gallery,
     tags: row.tags?.filter(Boolean) ?? [],
-    sizes: row.sizes ?? [],
+    sizes: sizeObjs,
     colors: colorObjs,
     is_featured: row.is_featured ?? false,
     is_bestseller: row.is_bestseller ?? false,
-    stock_quantity: Math.max(0, Number(row.stock_quantity ?? 0)),
+    stock_quantity: stockQuantity,
   };
 }

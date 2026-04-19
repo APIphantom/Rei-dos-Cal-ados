@@ -9,22 +9,34 @@ export function buildWaMeUrl(whatsappE164: string, message: string): string {
 
 export function buildProductWhatsAppUrl(params: {
   product: Product;
-  size: string;
-  color: string;
+  size?: string;
+  color?: string;
   whatsappE164?: string;
 }) {
-  const { product, size, color } = params;
+  const { product } = params;
+  const size = params.size?.trim();
+  const color = params.color?.trim();
+  const bits: string[] = [];
+  if (size && size !== "—") bits.push(`tamanho ${size}`);
+  if (color && color !== "—") bits.push(`cor ${color}`);
+  const suffix = bits.length ? ` (${bits.join(", ")})` : "";
+  const message = `Olá, quero comprar ${product.name}${suffix}.`;
   const n = params.whatsappE164?.replace(/\D/g, "") || DEFAULT_WHATSAPP_E164;
-  const message = `Olá, quero comprar ${product.name}, tamanho ${size}, cor ${color}`;
   return buildWaMeUrl(n, message);
 }
 
-export function buildProductWhatsAppUrlQuick(product: Product, whatsappE164?: string) {
-  const size = product.sizes[0] ?? "";
-  const color = product.colors[0]?.name ?? "";
+/** Mensagem para produto sem tamanhos nem cores na ficha — encomenda genérica */
+export function buildProductEncomendaUrl(product: Product, whatsappE164?: string) {
   const n = whatsappE164?.replace(/\D/g, "") || DEFAULT_WHATSAPP_E164;
-  if (!size || !color) {
+  return buildWaMeUrl(n, `Olá, quero encomendar o produto: ${product.name}.`);
+}
+
+export function buildProductWhatsAppUrlQuick(product: Product, whatsappE164?: string) {
+  const sz = product.sizes[0]?.label ?? "";
+  const col = product.colors[0]?.name ?? "";
+  const n = whatsappE164?.replace(/\D/g, "") || DEFAULT_WHATSAPP_E164;
+  if (!sz && !col) {
     return buildWaMeUrl(n, `Olá, quero saber mais sobre ${product.name}.`);
   }
-  return buildProductWhatsAppUrl({ product, size, color, whatsappE164: n });
+  return buildProductWhatsAppUrl({ product, size: sz || undefined, color: col || undefined, whatsappE164: n });
 }

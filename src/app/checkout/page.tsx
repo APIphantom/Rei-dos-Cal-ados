@@ -9,6 +9,7 @@ import { useStorePublicSettings } from "@/contexts/store-public-context";
 import { Section } from "@/components/ui/section";
 import { createOrderRecord } from "@/features/orders/actions";
 import { formatBRL } from "@/lib/money";
+import { formatCartVariantLabel, orderLineVariantFragments } from "@/features/cart/variant-label";
 import { buildWaMeUrl } from "@/lib/whatsapp";
 import { useCartStore, useCartTotals } from "@/features/cart/store";
 
@@ -27,12 +28,11 @@ function buildOrderMessage(params: {
 }) {
   const { values, lines, total } = params;
   const items = lines
-    .map(
-      (l) =>
-        `- ${l.product.name} | tam ${l.size} | cor ${l.color} | qtd ${l.quantity} | ${formatBRL(
-          l.product.price * l.quantity
-        )}`
-    )
+    .map((l) => {
+      const fr = orderLineVariantFragments(l.size, l.color);
+      const mid = fr.length ? ` | ${fr.join(" | ")}` : "";
+      return `- ${l.product.name}${mid} | qtd ${l.quantity} | ${formatBRL(l.product.price * l.quantity)}`;
+    })
     .join("\n");
 
   return [
@@ -200,17 +200,21 @@ export default function CheckoutPage() {
             {lines.length === 0 ? (
               <p className="text-sm text-muted-foreground">Seu carrinho está vazio.</p>
             ) : (
-              lines.map((l) => (
-                <div key={`${l.product.id}-${l.size}-${l.color}`} className="flex justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{l.product.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {l.product.brand} · {l.size} · {l.color} · qtd {l.quantity}
-                    </p>
+              lines.map((l) => {
+                const v = formatCartVariantLabel(l.size, l.color);
+                return (
+                  <div key={`${l.product.id}-${l.size}-${l.color}`} className="flex justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{l.product.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {l.product.brand}
+                        {v ? ` · ${v}` : ""} · qtd {l.quantity}
+                      </p>
+                    </div>
+                    <p className="text-sm font-bold text-primary">{formatBRL(l.product.price * l.quantity)}</p>
                   </div>
-                  <p className="text-sm font-bold text-primary">{formatBRL(l.product.price * l.quantity)}</p>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
