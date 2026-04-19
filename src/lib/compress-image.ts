@@ -1,7 +1,3 @@
-/**
- * Reduz JPEG local para caber no localStorage (~5MB total por origem).
- * Meta típica: ≤ 350KB após redimensionar lado máx. 1920px.
- */
 export async function fileToCompressedJpegDataUrl(
   file: File,
   opts: { maxSide?: number; maxBytes?: number; initialQuality?: number } = {}

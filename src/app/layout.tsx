@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/layout/Header";
@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   description: "Calçados premium com entrega rápida e até 6x sem juros.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const storePublic = await getStorePublicSettings();
 
@@ -23,7 +28,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Header />
           <CartDrawer />
           <WhatsAppFloating />
-          <main className="pt-14">{children}</main>
+          <main className="min-w-0 pt-14">{children}</main>
           <Footer store={storePublic} />
         </Providers>
       </body>

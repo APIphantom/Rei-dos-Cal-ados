@@ -1,12 +1,18 @@
 "use client";
 
 import { MessageCircle } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useStorePublicSettings } from "@/contexts/store-public-context";
 import { buildWaMeUrl } from "@/lib/whatsapp";
 
 export function WhatsAppFloating() {
+  const pathname = usePathname();
   const { whatsappE164 } = useStorePublicSettings();
   const url = buildWaMeUrl(whatsappE164, "Olá, gostaria de saber mais sobre os produtos!");
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <a

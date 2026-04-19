@@ -84,7 +84,7 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
   const fileAccept = type === "video" ? "video/*" : type === "image" ? "image/*" : "image/*,video/*";
 
   return (
-    <div className="space-y-8 rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-6 md:p-8">
+    <div className="space-y-6 rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 sm:space-y-8 md:p-8">
       <div>
         <h2 className="font-heading text-lg font-bold text-white">Mídia do hero (home)</h2>
         <p className="mt-2 text-sm text-zinc-500">
@@ -93,7 +93,7 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
         {(
           [
             { id: "none" as const, label: "Só gradiente" },
@@ -151,7 +151,7 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
         type="button"
         disabled={pending}
         onClick={submit}
-        className="inline-flex h-11 items-center justify-center rounded-full bg-[#F59E0B] px-8 text-xs font-bold uppercase tracking-wider text-black disabled:opacity-50"
+        className="inline-flex h-12 min-h-[44px] w-full items-center justify-center rounded-full bg-[#F59E0B] px-8 text-xs font-bold uppercase tracking-wider text-black disabled:opacity-50 sm:h-11 sm:w-auto"
       >
         {pending ? "Salvando…" : "Salvar hero"}
       </button>

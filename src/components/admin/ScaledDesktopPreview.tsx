@@ -28,14 +28,15 @@ export function ScaledDesktopPreview({ children, scale = DESKTOP_PREVIEW_SCALE, 
     if (!el) return;
 
     const measure = () => {
-      setLayoutHeight(el.offsetHeight);
+      const next = el.offsetHeight;
+      setLayoutHeight((prev) => (prev === next ? prev : next));
     };
 
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [children]);
+  }, []);
 
   const outerW = Math.round(DESKTOP_PREVIEW_WIDTH_PX * scale);
   const outerH = Math.max(120, Math.round(layoutHeight * scale));

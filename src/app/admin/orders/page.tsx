@@ -40,10 +40,9 @@ export default function AdminOrdersPage() {
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#F59E0B]">Operações</p>
-          <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight md:text-4xl">Pedidos (local)</h1>
+          <h1 className="mt-2 font-heading text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Pedidos</h1>
           <p className="mt-2 max-w-xl text-sm text-zinc-500">
-            Registre pedidos manualmente para alimentar métricas do painel. Os dados ficam apenas neste navegador (
-            <code className="rounded bg-[#111] px-1 text-xs">localStorage</code>).
+            Registe pedidos manualmente para acompanhar métricas neste painel.
           </p>
         </div>
         <Link
@@ -54,30 +53,30 @@ export default function AdminOrdersPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-6"
+          className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 sm:p-6"
         >
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Receita (pagos)</p>
           <p className="mt-2 text-2xl font-bold text-white">{formatBRL(metrics.revenuePaid)}</p>
         </motion.div>
-        <div className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-6">
+        <div className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 sm:p-6">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Pendentes</p>
           <p className="mt-2 text-2xl font-bold text-amber-100/90">{metrics.pendingCount}</p>
           <p className="mt-1 text-xs text-zinc-500">{formatBRL(metrics.totalPending)}</p>
         </div>
-        <div className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-6">
+        <div className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 sm:p-6">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Pagos</p>
           <p className="mt-2 text-2xl font-bold text-[#F59E0B]">{metrics.paidCount}</p>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
         <form
           onSubmit={submitManual}
-          className="space-y-4 rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-6"
+          className="space-y-4 rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 sm:p-6"
         >
           <h2 className="font-heading text-lg font-bold">Novo pedido manual</h2>
           <div>
@@ -130,11 +129,38 @@ export default function AdminOrdersPage() {
         </form>
 
         <div className="overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f]">
-          <div className="border-b border-[#2a2a2a] px-6 py-4">
-            <h2 className="font-heading text-lg font-bold">Lista ({orders.length})</h2>
+          <div className="border-b border-[#2a2a2a] px-4 py-3 sm:px-6 sm:py-4">
+            <h2 className="font-heading text-base font-bold sm:text-lg">Lista ({orders.length})</h2>
           </div>
-          <div className="max-h-[480px] overflow-auto">
-            <table className="w-full text-left text-sm">
+          <div className="max-h-[min(60vh,520px)] overflow-auto md:max-h-[480px]">
+            <ul className="divide-y divide-[#2a2a2a] md:hidden">
+              {orders.map((o) => (
+                <li key={o.id} className="space-y-3 px-4 py-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium text-zinc-200">{o.customerName}</span>
+                    <span className="font-semibold text-[#F59E0B]">{formatBRL(o.amount)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <select
+                      value={o.status}
+                      onChange={(e) => updateStatus(o.id, e.target.value as OrderStatus)}
+                      className="min-h-[44px] min-w-[140px] rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] px-3 py-2 text-xs font-semibold uppercase"
+                    >
+                      <option value="pending">Pendente</option>
+                      <option value="paid">Pago</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => remove(o.id)}
+                      className="min-h-[44px] rounded-xl px-3 text-xs font-semibold text-red-400/90 hover:bg-red-500/10 hover:text-red-300"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <table className="hidden w-full text-left text-sm md:table">
               <thead className="sticky top-0 bg-[#111] text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500">
                 <tr>
                   <th className="px-4 py-3">Cliente</th>

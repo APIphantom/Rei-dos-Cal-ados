@@ -35,6 +35,10 @@ export const HERO_UI_DEFAULTS = {
   /** Dimensões da JPEG local após compressão (para next/image sem distorção). */
   imageOverrideWidth: null as number | null,
   imageOverrideHeight: null as number | null,
+  /** Imagem opcional para viewport estreita (Tailwind md); proporção independente da desktop. */
+  imageOverrideMobile: null as string | null,
+  imageOverrideMobileWidth: null as number | null,
+  imageOverrideMobileHeight: null as number | null,
   /** object-position (vídeo ou legado); imagens em largura total não usam recorte. */
   imageObjectPosition: "50% 52%",
 };
@@ -50,19 +54,34 @@ type HeroUiActions = {
     /** Se definido ao enviar imagem, grava dimensões; omitir ao só alternar “usar local”. */
     dims?: { width: number; height: number } | null
   ) => void;
+  setImageOverrideMobile: (
+    dataUrl: string | null,
+    dims?: { width: number; height: number } | null
+  ) => void;
 };
 
-/** Base64 maior que isso não entra no localStorage (evita QuotaExceededError). */
-const MAX_PERSIST_IMAGE_CHARS = 380_000;
+export const MAX_PERSIST_HERO_IMAGE_CHARS = 180_000;
+
+export const HERO_JPEG_COMPRESS_MAX_BYTES = 125_000;
 
 export function sliceHeroStateForPersist(s: HeroUiState & HeroUiActions) {
-  const { patch, reset, setImageOverride, imageOverride, ...rest } = s;
-  const keepImg =
-    typeof imageOverride === "string" && imageOverride.length > 0 && imageOverride.length <= MAX_PERSIST_IMAGE_CHARS;
+  const { patch, reset, setImageOverride, setImageOverrideMobile, imageOverride, imageOverrideMobile, ...rest } = s;
+  const cap = MAX_PERSIST_HERO_IMAGE_CHARS;
+
+  const keepDesktop =
+    typeof imageOverride === "string" && imageOverride.length > 0 && imageOverride.length <= cap;
+  const keepMobile =
+    typeof imageOverrideMobile === "string" && imageOverrideMobile.length > 0 && imageOverrideMobile.length <= cap;
+
   return {
     ...rest,
-    imageOverride: keepImg ? imageOverride : null,
-    useImageOverride: keepImg ? s.useImageOverride : false,
+    imageOverride: keepDesktop ? imageOverride : null,
+    useImageOverride: keepDesktop ? s.useImageOverride : false,
+    imageOverrideWidth: keepDesktop ? s.imageOverrideWidth : null,
+    imageOverrideHeight: keepDesktop ? s.imageOverrideHeight : null,
+    imageOverrideMobile: keepMobile ? imageOverrideMobile : null,
+    imageOverrideMobileWidth: keepMobile ? s.imageOverrideMobileWidth : null,
+    imageOverrideMobileHeight: keepMobile ? s.imageOverrideMobileHeight : null,
   };
 }
 
@@ -77,11 +96,32 @@ export const useHeroUiStore = create<HeroUiState & HeroUiActions>()(
           imageOverride,
           useImageOverride,
           ...(imageOverride === null
-            ? { imageOverrideWidth: null, imageOverrideHeight: null }
+            ? {
+                imageOverrideWidth: null,
+                imageOverrideHeight: null,
+                imageOverrideMobile: null,
+                imageOverrideMobileWidth: null,
+                imageOverrideMobileHeight: null,
+              }
             : dims !== undefined
               ? {
                   imageOverrideWidth: dims?.width ?? null,
                   imageOverrideHeight: dims?.height ?? null,
+                }
+              : {}),
+        }),
+      setImageOverrideMobile: (imageOverrideMobile, dims) =>
+        set({
+          imageOverrideMobile,
+          ...(imageOverrideMobile === null
+            ? {
+                imageOverrideMobileWidth: null,
+                imageOverrideMobileHeight: null,
+              }
+            : dims !== undefined
+              ? {
+                  imageOverrideMobileWidth: dims?.width ?? null,
+                  imageOverrideMobileHeight: dims?.height ?? null,
                 }
               : {}),
         }),
@@ -96,7 +136,6 @@ export const useHeroUiStore = create<HeroUiState & HeroUiActions>()(
 
 const PERSIST_KEY = "rdc-hero-ui-v1";
 
-/** Grava o estado atual no localStorage (redundante ao persist, útil no botão Salvar). */
 export function flushHeroUiPersistence() {
   if (typeof window === "undefined") return;
   const slim = sliceHeroStateForPersist(useHeroUiStore.getState());

@@ -57,7 +57,7 @@ export function ThemeColorField({ label, value, onChange, themeDefault, descript
         aria-hidden
       />
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="color"
           value={pickerHex}

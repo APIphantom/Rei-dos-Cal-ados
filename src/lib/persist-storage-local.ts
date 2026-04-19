@@ -10,15 +10,42 @@ function tryStripOversizedImages(parsed: { state?: Record<string, unknown> }): b
     st.useImageOverride = false;
     changed = true;
   }
+  const heroMobile = st.imageOverrideMobile;
+  if (typeof heroMobile === "string" && heroMobile.length > MAX_INLINE_IMAGE) {
+    st.imageOverrideMobile = null;
+    st.imageOverrideMobileWidth = null;
+    st.imageOverrideMobileHeight = null;
+    changed = true;
+  }
   const banner = st.image;
   if (typeof banner === "string" && banner.length > MAX_INLINE_IMAGE) {
     st.image = null;
     changed = true;
   }
+  const bannerMobile = st.imageMobile;
+  if (typeof bannerMobile === "string" && bannerMobile.length > MAX_INLINE_IMAGE) {
+    st.imageMobile = null;
+    changed = true;
+  }
+  const testimonialItems = st.items;
+  if (Array.isArray(testimonialItems)) {
+    for (let i = 0; i < testimonialItems.length; i++) {
+      const row = testimonialItems[i] as { imageUrl?: unknown; productImageUrl?: unknown };
+      const timg = row?.imageUrl;
+      if (typeof timg === "string" && timg.length > MAX_INLINE_IMAGE) {
+        row.imageUrl = null;
+        changed = true;
+      }
+      const pimg = row?.productImageUrl;
+      if (typeof pimg === "string" && pimg.length > MAX_INLINE_IMAGE) {
+        row.productImageUrl = null;
+        changed = true;
+      }
+    }
+  }
   return changed;
 }
 
-/** localStorage com migração e retry quando a quota estoura (imagens base64 antigas). */
 export function createSafeLocalStorage() {
   return {
     getItem: (name: string) => {
@@ -47,7 +74,13 @@ export function createSafeLocalStorage() {
             if (parsed.state) {
               parsed.state.imageOverride = null;
               parsed.state.useImageOverride = false;
+              if ("imageOverrideMobile" in parsed.state) {
+                parsed.state.imageOverrideMobile = null;
+                parsed.state.imageOverrideMobileWidth = null;
+                parsed.state.imageOverrideMobileHeight = null;
+              }
               parsed.state.image = null;
+              if ("imageMobile" in parsed.state) parsed.state.imageMobile = null;
               localStorage.setItem(name, JSON.stringify(parsed));
             }
           } catch {

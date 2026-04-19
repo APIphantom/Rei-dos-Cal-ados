@@ -49,8 +49,13 @@
     @apply border-border;
   }
 
+  html {
+    overflow-x: clip;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply min-w-0 bg-background text-foreground;
+    overflow-x: clip;
   }
 }
 

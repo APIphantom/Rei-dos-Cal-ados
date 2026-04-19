@@ -52,11 +52,9 @@ export default function RegisterPage() {
         router.refresh();
         return;
       }
-      setInfo(
-        "Conta criada. Confirme o email (link enviado) antes de entrar — ou desative a confirmação em Authentication → Providers → Email no Supabase (apenas dev)."
-      );
+      setInfo("Conta criada. Confirme o email (link enviado) antes de entrar.");
     } catch {
-      setError("Não foi possível cadastrar. Verifique o Supabase.");
+      setError("Não foi possível concluir o cadastro. Tente novamente.");
     } finally {
       setLoading(false);
     }

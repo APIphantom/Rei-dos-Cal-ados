@@ -33,7 +33,7 @@ export async function createOrderRecord(
 
   const admin = createServiceRoleClient();
   if (!admin) {
-    return { ok: false, skipped: true, reason: "SUPABASE_SERVICE_ROLE_KEY não configurada." };
+    return { ok: false, skipped: true, reason: "Registo automático indisponível." };
   }
 
   const p = parsed.data;
@@ -62,7 +62,7 @@ export async function createOrderRecord(
 
   if (error) {
     console.error("[orders] createOrderRecord", error.message);
-    return { ok: false, skipped: true, reason: error.message };
+    return { ok: false, skipped: true, reason: "Não foi possível registar o pedido." };
   }
 
   return { ok: true, id: data.id as string };

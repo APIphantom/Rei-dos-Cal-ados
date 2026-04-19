@@ -56,7 +56,7 @@ export async function saveHeroSettings(payload: unknown): Promise<{ ok: true } |
 
   if (error) {
     console.error("[admin] saveHeroSettings", error.message);
-    return { ok: false, error: "Não foi possível salvar. Rode a migração SQL (site_settings) no Supabase." };
+    return { ok: false, error: "Não foi possível guardar as definições. Tente novamente." };
   }
 
   return { ok: true };

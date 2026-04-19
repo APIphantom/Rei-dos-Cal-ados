@@ -64,12 +64,12 @@ export default function AdminProductsPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#F59E0B]">Catálogo</p>
-          <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight md:text-4xl">Produtos</h1>
+          <h1 className="mt-2 font-heading text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Produtos</h1>
           <p className="mt-2 text-sm text-zinc-500">Pesquise, filtre por marca e edite itens.</p>
         </div>
         <Link
           href="/admin/products/new"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#F59E0B] px-6 text-sm font-bold text-black transition-opacity hover:opacity-90"
+          className="inline-flex h-12 min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#F59E0B] px-6 text-sm font-bold text-black transition-opacity hover:opacity-90 md:w-auto"
         >
           <Plus className="h-4 w-4" />
           Novo produto
@@ -103,7 +103,48 @@ export default function AdminProductsPage() {
         </label>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f]">
+      <div className="space-y-3 md:hidden">
+        {filtered.map((r) => (
+          <div
+            key={r.id}
+            className="flex gap-4 rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-4"
+          >
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111]">
+              <Image src={r.image_url} alt="" fill className="object-cover" sizes="80px" loading="lazy" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="font-semibold leading-snug text-white">{r.name}</p>
+              <p className="text-xs text-zinc-500">
+                {r.brand} · {r.category}
+              </p>
+              <p className="text-sm font-bold text-[#F59E0B]">{formatBRL(Number(r.price))}</p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Link
+                  href={`/admin/products/edit/${r.id}`}
+                  className="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-lg border border-[#2a2a2a] px-3 text-xs font-bold uppercase tracking-wider text-zinc-300 sm:flex-none"
+                >
+                  Editar
+                </Link>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => onDelete(r.id)}
+                  className="inline-flex min-h-[40px] flex-1 items-center justify-center rounded-lg border border-[#2a2a2a] px-3 text-xs font-bold uppercase tracking-wider text-zinc-500 sm:flex-none hover:border-red-500/50 hover:text-red-400 disabled:opacity-50"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-[#2a2a2a] py-12 text-center text-sm text-zinc-500">
+            Nenhum produto encontrado.
+          </p>
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-[#2a2a2a] text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500">
@@ -158,7 +199,7 @@ export default function AdminProductsPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-zinc-500">
-                    Nenhum produto encontrado.
+                    Nenhum produto nesta vista.
                   </td>
                 </tr>
               )}

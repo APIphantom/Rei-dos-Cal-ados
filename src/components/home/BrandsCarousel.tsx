@@ -12,6 +12,9 @@ type Props = {
   brands: StoreBrand[];
 };
 
+const navBtnClass =
+  "grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border/50 text-muted-foreground transition-all duration-300 hover:border-primary/40 hover:bg-primary/10 hover:text-primary md:h-10 md:w-10";
+
 export function BrandsCarousel({ brands }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
@@ -37,44 +40,36 @@ export function BrandsCarousel({ brands }: Props) {
           </div>
 
           <div className="relative min-w-0 flex-1">
-            <div className="absolute -top-1 right-0 z-10 hidden gap-1 md:flex">
-              <button
-                type="button"
-                onClick={scrollPrev}
-                className="grid h-9 w-9 place-items-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
-                aria-label="Anterior"
-              >
-                <ChevronLeft className="h-4 w-4" strokeWidth={1.75} />
+            <div className="flex items-center gap-2 md:gap-3">
+              <button type="button" onClick={scrollPrev} className={navBtnClass} aria-label="Marcas anteriores">
+                <ChevronLeft className="h-4 w-4 md:h-[18px] md:w-[18px]" strokeWidth={1.75} />
               </button>
-              <button
-                type="button"
-                onClick={scrollNext}
-                className="grid h-9 w-9 place-items-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
-                aria-label="Próximo"
-              >
-                <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
-              </button>
-            </div>
 
-            <div className="overflow-hidden pr-0 md:pr-24" ref={emblaRef}>
-              <div className="flex gap-2 md:gap-3">
-                {brands.map((b) => (
-                  <div key={b.name} className="min-w-[min(118px,28vw)] shrink-0 sm:min-w-[128px]">
-                    <Link
-                      href={`/?brand=${encodeURIComponent(b.name)}#catalogo`}
-                      aria-label={`Ver produtos ${b.name} no catálogo`}
-                      className="group flex flex-col items-center gap-3 rounded-2xl px-3 py-5 transition-colors duration-300 hover:bg-primary/[0.06]"
+              <div className="min-w-0 flex-1 overflow-hidden" ref={emblaRef}>
+                <div className="flex gap-2 md:gap-3">
+                  {brands.map((b) => (
+                    <div
+                      key={b.name}
+                      className="min-w-[min(148px,38vw)] shrink-0 sm:min-w-[160px]"
                     >
-                      <span className="relative flex h-[52px] w-full items-center justify-center">
+                      <Link
+                        href={`/?brand=${encodeURIComponent(b.name)}#catalogo`}
+                        aria-label={`Ver produtos ${b.name} no catálogo`}
+                        className="group flex flex-col items-center gap-3 rounded-2xl px-2 py-4 transition-colors duration-300 hover:bg-primary/[0.06] sm:px-3 sm:py-5"
+                      >
                         <BrandLogoImage brand={b} />
-                      </span>
-                      <span className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                        {b.name}
-                      </span>
-                    </Link>
-                  </div>
-                ))}
+                        <span className="line-clamp-2 min-h-[2.5rem] text-center text-[10px] font-semibold uppercase leading-snug tracking-[0.06em] text-muted-foreground transition-colors duration-300 group-hover:text-primary sm:text-[11px] sm:tracking-[0.08em]">
+                          {b.name}
+                        </span>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              <button type="button" onClick={scrollNext} className={navBtnClass} aria-label="Próximas marcas">
+                <ChevronRight className="h-4 w-4 md:h-[18px] md:w-[18px]" strokeWidth={1.75} />
+              </button>
             </div>
           </div>
         </div>

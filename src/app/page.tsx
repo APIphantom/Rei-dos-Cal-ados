@@ -9,14 +9,9 @@ import { TestimonialsCarousel } from "@/components/home/TestimonialsCarousel";
 import { CatalogSection } from "@/features/products/components/CatalogSection";
 import { STORE_BRANDS } from "@/config/store-brands";
 import { getAllProducts, getFeaturedProduct } from "@/features/products/services/products";
-import { getTestimonials } from "@/lib/testimonials";
 
 export default async function HomePage() {
-  const [products, featured, testimonials] = await Promise.all([
-    getAllProducts(),
-    getFeaturedProduct(),
-    getTestimonials(),
-  ]);
+  const [products, featured] = await Promise.all([getAllProducts(), getFeaturedProduct()]);
 
   return (
     <>
@@ -33,7 +28,7 @@ export default async function HomePage() {
           {products.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/50 bg-card/[0.2] p-10 text-center">
               <p className="text-sm text-muted-foreground">
-                Nenhum produto no catálogo. Conecte o projeto ao Supabase e rode as migrações; em seguida cadastre itens em{" "}
+                Nenhum produto no catálogo ainda. Cadastre itens em{" "}
                 <span className="text-foreground">Admin → Produtos</span>.
               </p>
             </div>
@@ -51,7 +46,7 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      <TestimonialsCarousel items={testimonials} />
+      <TestimonialsCarousel />
 
       <section className="py-10 md:py-12">
         <Container className="flex flex-col items-center justify-between gap-4 border-t border-border/40 pt-10 text-center md:flex-row md:text-left">

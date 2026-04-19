@@ -6,11 +6,11 @@ import { LayoutDashboard, Package, Palette, Settings, ShoppingBag, Store } from 
 import { cn } from "@/lib/utils";
 
 const items = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/orders", label: "Pedidos", icon: ShoppingBag },
-  { href: "/admin/customize", label: "Customização", icon: Palette },
-  { href: "/admin/products", label: "Produtos", icon: Package },
-  { href: "/admin/settings", label: "Configurações", icon: Settings },
+  { href: "/admin", label: "Painel", shortLabel: "Painel", icon: LayoutDashboard },
+  { href: "/admin/orders", label: "Pedidos", shortLabel: "Pedidos", icon: ShoppingBag },
+  { href: "/admin/customize", label: "Customização", shortLabel: "Loja", icon: Palette },
+  { href: "/admin/products", label: "Produtos", shortLabel: "Produtos", icon: Package },
+  { href: "/admin/settings", label: "Configurações", shortLabel: "Ajustes", icon: Settings },
 ];
 
 function navActive(pathname: string, href: string) {
@@ -60,25 +60,52 @@ export function AdminSidebar() {
   );
 }
 
-export function AdminMobileNav() {
-  const pathname = usePathname();
+/** Barra superior compacta em ecrãs pequenos (a navegação principal é a barra inferior). */
+export function AdminMobileHeader() {
   return (
-    <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden" aria-label="Admin">
-      {items.map(({ href, label }) => {
-        const active = navActive(pathname, href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider",
-              active ? "bg-[#F59E0B] text-black" : "border border-[#2a2a2a] bg-[#111] text-zinc-400"
-            )}
-          >
-            {label}
-          </Link>
-        );
-      })}
+    <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-[#1f1f1f] bg-[#050505]/95 px-4 py-3 backdrop-blur-md md:hidden">
+      <Link href="/admin" className="min-w-0 font-heading text-base font-bold tracking-tight text-white">
+        Admin
+      </Link>
+      <Link
+        href="/"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#2a2a2a] bg-[#111] px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-[#F59E0B]/40 hover:text-white"
+      >
+        <Store className="h-3.5 w-3.5" aria-hidden />
+        Ver loja
+      </Link>
+    </header>
+  );
+}
+
+/** Navegação inferior fixa (touch-friendly) em mobile. */
+export function AdminBottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-[#1f1f1f] bg-[#0a0a0a]/95 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-lg md:hidden"
+      aria-label="Navegação do painel"
+    >
+      <ul className="mx-auto flex max-w-lg items-stretch justify-between gap-0.5 px-1">
+        {items.map(({ href, shortLabel, icon: Icon }) => {
+          const active = navActive(pathname, href);
+          return (
+            <li key={href} className="min-w-0 flex-1">
+              <Link
+                href={href}
+                className={cn(
+                  "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold leading-tight transition-colors",
+                  active ? "text-[#F59E0B]" : "text-zinc-500 hover:text-zinc-300"
+                )}
+              >
+                <Icon className={cn("h-5 w-5 shrink-0", active ? "text-[#F59E0B]" : "text-zinc-500")} aria-hidden />
+                <span className="line-clamp-2 text-center">{shortLabel}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </nav>
   );
 }

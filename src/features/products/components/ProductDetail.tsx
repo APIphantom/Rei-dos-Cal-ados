@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AdminImage } from "@/components/ui/admin-image";
 import { MessageCircle, Package, ShoppingBag, Sparkles } from "lucide-react";
 import type { Product } from "@/types/product";
 import { Container } from "@/components/ui/container";
@@ -36,7 +36,7 @@ export function ProductDetail({ product, related }: { product: Product; related:
             <div className="space-y-4">
               <div className="group relative aspect-[4/5] overflow-hidden rounded-3xl border border-border bg-card">
                 <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-[1.08]">
-                  <Image
+                  <AdminImage
                     src={activeImage}
                     alt={product.name}
                     fill
@@ -56,18 +56,18 @@ export function ProductDetail({ product, related }: { product: Product; related:
               </div>
 
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {product.images.map((img) => (
+                {product.images.map((img, idx) => (
                   <button
-                    key={img}
+                    key={`${img}-${idx}`}
                     type="button"
                     onClick={() => setActiveImage(img)}
                     className={[
-                      "relative h-20 w-16 shrink-0 overflow-hidden rounded-2xl border bg-card transition-colors",
+                      "relative aspect-square h-20 w-20 shrink-0 overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:scale-[1.03]",
                       img === activeImage ? "border-primary ring-1 ring-primary/40" : "border-border hover:border-primary/50",
                     ].join(" ")}
                     aria-label="Selecionar imagem"
                   >
-                    <Image src={img} alt="" fill sizes="64px" className="object-cover" loading="lazy" />
+                    <AdminImage src={img} alt="" fill sizes="80px" className="object-cover" />
                   </button>
                 ))}
               </div>
@@ -76,7 +76,7 @@ export function ProductDetail({ product, related }: { product: Product; related:
             <div className="space-y-6">
               <div>
                 <p className="typo-label">{product.brand}</p>
-                <h1 className="typo-h2 mt-2">{product.name}</h1>
+                <h1 className="typo-h2 mt-2 break-words">{product.name}</h1>
                 {product.tags.length > 0 && (
                   <ul className="mt-3 flex flex-wrap gap-2" aria-label="Etiquetas">
                     {product.tags.map((t) => (

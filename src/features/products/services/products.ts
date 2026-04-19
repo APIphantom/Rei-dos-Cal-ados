@@ -78,9 +78,7 @@ export async function getAllProducts(): Promise<Product[]> {
   if (error) {
     console.error("[produtos] getAllProducts", error.message);
     if (error.message.includes("schema cache") || error.message.includes("does not exist")) {
-      console.error(
-        "[produtos] Tabela ausente: rode o SQL em supabase/migrations/20260117000000_init.sql no SQL Editor do Supabase (Dashboard → SQL)."
-      );
+      console.error("[produtos] Tabela de produtos indisponível.");
     }
     return [];
   }

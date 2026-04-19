@@ -45,7 +45,7 @@ function LoginInner() {
       router.push(callbackUrl);
       router.refresh();
     } catch {
-      setError("Não foi possível entrar. Verifique o Supabase.");
+      setError("Não foi possível iniciar sessão. Tente novamente.");
     } finally {
       setLoading(false);
     }

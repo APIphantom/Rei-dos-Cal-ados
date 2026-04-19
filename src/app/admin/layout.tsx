@@ -1,4 +1,4 @@
-import { AdminMobileNav, AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminBottomNav, AdminMobileHeader, AdminSidebar } from "@/components/admin/AdminSidebar";
 import { requireAdmin } from "@/lib/auth/require-admin";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -12,11 +12,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <AdminSidebar />
           </div>
         </aside>
-        <div className="flex min-h-screen flex-1 flex-col">
-          <div className="border-b border-[#1f1f1f] px-4 py-3 md:hidden">
-            <AdminMobileNav />
-          </div>
-          <main className="flex-1 px-4 py-6 md:px-8 md:py-10">{children}</main>
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <AdminMobileHeader />
+          <main className="flex-1 px-3 py-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:px-4 md:px-8 md:py-10 md:pb-10">
+            {children}
+          </main>
+          <AdminBottomNav />
         </div>
       </div>
     </div>

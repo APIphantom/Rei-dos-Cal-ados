@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Crown, LogIn, LogOut, Menu, Shield, User, ShoppingBag, X } from "lucide-react";
+import { LogIn, LogOut, Menu, Shield, User, ShoppingBag, X } from "lucide-react";
+import { BrandLogo } from "@/components/profile/brand-logo";
 import { Container } from "@/components/ui/container";
 import { HeaderSearch } from "@/components/layout/HeaderSearch";
 import { cn } from "@/lib/utils";
@@ -43,12 +44,7 @@ export function Header() {
             {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
 
-          <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 text-foreground">
-            <Crown className="h-4 w-4 shrink-0 text-primary md:h-5 md:w-5" aria-hidden />
-            <span className="font-heading text-xs font-bold tracking-tight sm:text-sm">
-              Rei Dos <span className="text-primary">Calçados</span>
-            </span>
-          </Link>
+          <BrandLogo priority className="min-w-0" />
         </div>
 
         <nav className="font-heading hidden items-center justify-center gap-8 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground md:flex">

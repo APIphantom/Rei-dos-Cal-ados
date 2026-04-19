@@ -15,6 +15,7 @@ import {
   uploadProductImage,
 } from "@/features/admin/products/actions";
 import { TagInput } from "@/components/admin/TagInput";
+import { AdminImage } from "@/components/ui/admin-image";
 import { cn } from "@/lib/utils";
 
 const SHOE_SIZES = ["38", "39", "40", "41", "42", "43", "44", "45"];
@@ -49,6 +50,8 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [mainPreview, setMainPreview] = useState<string | null>(null);
+  const [pendingGallery, setPendingGallery] = useState<{ id: string; preview: string }[]>([]);
   const [colorName, setColorName] = useState("");
   const [colorHex, setColorHex] = useState("#111111");
 
@@ -70,6 +73,7 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
 
   const imageUrl = watch("image_url");
   const galleryUrls = watch("gallery_urls") ?? [];
+  const mainDisplay = mainPreview || imageUrl;
   const colors = watch("colors") ?? [];
 
   async function runUpload(file: File) {
@@ -87,6 +91,8 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const blob = URL.createObjectURL(file);
+    setMainPreview(blob);
     setUploadingMain(true);
     try {
       const url = await runUpload(file);
@@ -95,6 +101,8 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
         toast.success("Imagem principal enviada.");
       }
     } finally {
+      URL.revokeObjectURL(blob);
+      setMainPreview(null);
       setUploadingMain(false);
     }
   }
@@ -104,14 +112,22 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
     e.target.value = "";
     if (!files.length) return;
     setUploadingGallery(true);
+    const next: string[] = [...galleryUrls];
     try {
-      const next: string[] = [...galleryUrls];
       for (const file of files) {
-        const url = await runUpload(file);
-        if (url) next.push(url);
+        const id = crypto.randomUUID();
+        const preview = URL.createObjectURL(file);
+        setPendingGallery((p) => [...p, { id, preview }]);
+        try {
+          const url = await runUpload(file);
+          if (url) next.push(url);
+        } finally {
+          setPendingGallery((p) => p.filter((x) => x.id !== id));
+          URL.revokeObjectURL(preview);
+        }
       }
       setValue("gallery_urls", next, { shouldValidate: true });
-      if (files.length) toast.success(`${files.length} imagem(ns) na galeria.`);
+      toast.success(`${files.length} imagem(ns) na galeria.`);
     } finally {
       setUploadingGallery(false);
     }
@@ -168,7 +184,7 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
 
   return (
     <>
-      <form id="admin-product-form" onSubmit={handleSubmit(onValid)} className="space-y-10 pb-32">
+      <form id="admin-product-form" onSubmit={handleSubmit(onValid)} className="space-y-10 pb-40 md:pb-32">
         <section className="rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-6 md:p-8">
           <h2 className="font-heading text-lg font-bold text-white">Informações básicas</h2>
           <p className="mt-1 text-sm text-zinc-500">Nome, preço, marca e categoria.</p>
@@ -353,8 +369,14 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
             <div className="space-y-3">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Imagem principal</p>
               <div className="relative aspect-[3/4] max-h-[320px] overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#111]">
-                {imageUrl ? (
-                  <Image src={imageUrl} alt="" fill className="object-cover" sizes="(max-width: 1024px) 100vw, 400px" />
+                {mainDisplay ? (
+                  <AdminImage
+                    src={mainDisplay}
+                    alt=""
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 400px"
+                    className="object-cover"
+                  />
                 ) : (
                   <div className="flex h-full min-h-[200px] items-center justify-center text-sm text-zinc-600">
                     Nenhuma imagem
@@ -396,10 +418,13 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
                 {uploadingGallery ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 Adicionar à galeria
               </button>
-              <ul className="grid gap-3 sm:grid-cols-2">
+              <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 {galleryUrls.map((url, i) => (
-                  <li key={url} className="relative aspect-square overflow-hidden rounded-xl border border-[#2a2a2a]">
-                    <Image src={url} alt="" fill className="object-cover" sizes="200px" />
+                  <li
+                    key={`saved-${i}-${url.slice(-32)}`}
+                    className="group relative aspect-square overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111]"
+                  >
+                    <AdminImage src={url} alt="" fill sizes="(max-width: 768px) 45vw, 160px" className="object-cover" />
                     <button
                       type="button"
                       onClick={() =>
@@ -409,11 +434,22 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
                           { shouldValidate: true }
                         )
                       }
-                      className="absolute right-2 top-2 rounded-lg bg-black/70 p-1.5 text-white hover:bg-red-600"
+                      className="absolute right-2 top-2 rounded-lg bg-black/70 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
                       aria-label="Remover"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
+                  </li>
+                ))}
+                {pendingGallery.map((slot) => (
+                  <li
+                    key={slot.id}
+                    className="relative aspect-square overflow-hidden rounded-xl border border-[#F59E0B]/30 bg-[#111]"
+                  >
+                    <Image src={slot.preview} alt="" fill className="object-cover opacity-70" unoptimized />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+                      <Loader2 className="h-6 w-6 animate-spin text-[#F59E0B]" aria-hidden />
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -422,16 +458,16 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
         </section>
       </form>
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#2a2a2a] bg-[#0a0a0a]/95 px-4 py-4 backdrop-blur-md md:left-64">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+      <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-[#2a2a2a] bg-[#0a0a0a]/95 px-3 py-3 backdrop-blur-md md:bottom-0 md:left-64 md:px-4 md:py-4">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <p className="hidden text-sm text-zinc-500 sm:block">
             {mode === "create" ? "Novo produto" : "Edição"} — alterações não salvas até confirmar.
           </p>
-          <div className="ml-auto flex gap-3">
+          <div className="flex w-full gap-2 sm:ml-auto sm:w-auto sm:gap-3">
             <button
               type="button"
               onClick={() => router.push("/admin/products")}
-              className="h-12 rounded-xl border border-[#2a2a2a] px-6 text-sm font-semibold text-zinc-300 hover:bg-white/5"
+              className="h-12 flex-1 rounded-xl border border-[#2a2a2a] px-4 text-sm font-semibold text-zinc-300 hover:bg-white/5 sm:flex-none sm:px-6"
             >
               Cancelar
             </button>
@@ -439,7 +475,7 @@ export function ProductForm({ mode, productId, initialValues, brandSuggestions, 
               type="submit"
               form="admin-product-form"
               disabled={isSubmitting}
-              className="inline-flex h-12 min-w-[160px] items-center justify-center rounded-xl bg-[#F59E0B] px-8 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="inline-flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl bg-[#F59E0B] px-4 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50 sm:min-w-[160px] sm:flex-none sm:px-8"
             >
               {isSubmitting ? (
                 <>

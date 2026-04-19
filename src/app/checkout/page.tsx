@@ -101,8 +101,8 @@ export default function CheckoutPage() {
 
   return (
     <Section>
-      <div className="grid gap-10 lg:grid-cols-[1fr_420px]">
-        <div className="space-y-6">
+      <div className="grid min-w-0 gap-10 lg:grid-cols-[1fr_420px]">
+        <div className="min-w-0 space-y-6">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Checkout</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">Finalize em 1 minuto</h1>
@@ -116,9 +116,8 @@ export default function CheckoutPage() {
               <p className="text-sm font-medium">Pedido enviado para o WhatsApp.</p>
               {orderPersisted === false && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Configure{" "}
-                  <code className="rounded bg-muted px-1 py-0.5 text-foreground">SUPABASE_SERVICE_ROLE_KEY</code> no
-                  servidor para gravar pedidos automaticamente na base.
+                  O registo automático do pedido na loja não está disponível neste momento. O envio pelo WhatsApp foi
+                  concluído.
                 </p>
               )}
               <p className="mt-2 text-sm text-muted-foreground">Se a janela não abriu, use o link abaixo.</p>
@@ -195,7 +194,7 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        <aside className="h-fit rounded-3xl border border-border bg-card p-6">
+        <aside className="h-fit min-w-0 rounded-3xl border border-border bg-card p-6">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Resumo do pedido</p>
           <div className="mt-4 space-y-3">
             {lines.length === 0 ? (

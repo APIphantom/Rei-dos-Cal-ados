@@ -41,7 +41,7 @@ export async function saveTestimonial(
 
   if (error) {
     console.error("[admin] saveTestimonial", error.message);
-    return { ok: false, error: "Não foi possível salvar. Rode a migração testimonials no Supabase." };
+    return { ok: false, error: "Não foi possível guardar. Tente novamente." };
   }
   return { ok: true, id: data.id as string };
 }

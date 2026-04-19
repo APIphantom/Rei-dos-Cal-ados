@@ -7,7 +7,6 @@ import { Loader2, X } from "lucide-react";
 import { getHeroCroppedImageBlob } from "@/lib/hero-image-crop";
 import { cn } from "@/lib/utils";
 
-/** Faixa panorâmica compatível com a altura do banner na home. */
 export const BANNER_CROP_ASPECT = 2.75;
 
 type Props = {

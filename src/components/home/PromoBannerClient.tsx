@@ -11,9 +11,11 @@ type Props = {
   interactive?: boolean;
   editable?: boolean;
   bannerImageSizes?: string;
+  bannerImageSizesMobile?: string;
 };
 
 const DEFAULT_BANNER_IMAGE_SIZES = "(max-width: 1920px) 100vw, 1600px";
+const DEFAULT_BANNER_MOBILE_IMAGE_SIZES = "100vw";
 
 const alignClass: Record<string, string> = {
   left: "text-left items-start",
@@ -25,11 +27,13 @@ export function PromoBannerClient({
   interactive = true,
   editable = false,
   bannerImageSizes = DEFAULT_BANNER_IMAGE_SIZES,
+  bannerImageSizesMobile = DEFAULT_BANNER_MOBILE_IMAGE_SIZES,
 }: Props) {
   const constraintsRef = useRef<HTMLDivElement>(null);
   const {
     enabled,
     image,
+    imageMobile,
     overlayOpacity,
     overlayColor,
     gradientEnabled,
@@ -92,15 +96,42 @@ export function PromoBannerClient({
     <section className="border-b border-border/40">
       <div className="relative isolate w-full overflow-hidden bg-muted/20 [height:max(16rem,min(42svh,26rem))]">
         <div className="absolute inset-0 z-0">
-          <Image
-            src={image}
-            alt=""
-            fill
-            className="object-cover"
-            style={{ objectPosition: imageObjectPosition }}
-            sizes={bannerImageSizes}
-            unoptimized={image.startsWith("data:")}
-          />
+          {imageMobile ? (
+            <>
+              <div className="absolute inset-0 md:hidden">
+                <Image
+                  src={imageMobile}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  style={{ objectPosition: imageObjectPosition }}
+                  sizes={bannerImageSizesMobile}
+                  unoptimized={imageMobile.startsWith("data:")}
+                />
+              </div>
+              <div className="absolute inset-0 hidden md:block">
+                <Image
+                  src={image}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  style={{ objectPosition: imageObjectPosition }}
+                  sizes={bannerImageSizes}
+                  unoptimized={image.startsWith("data:")}
+                />
+              </div>
+            </>
+          ) : (
+            <Image
+              src={image}
+              alt=""
+              fill
+              className="object-cover"
+              style={{ objectPosition: imageObjectPosition }}
+              sizes={bannerImageSizes}
+              unoptimized={image.startsWith("data:")}
+            />
+          )}
         </div>
 
         {overlayOpacity > 0 && (
@@ -130,7 +161,7 @@ export function PromoBannerClient({
               {eyebrow}
             </p>
             <h2
-              className="mt-2 font-heading leading-tight tracking-tight"
+              className="mt-2 font-heading leading-tight tracking-tight break-words"
               style={{
                 fontSize: `clamp(1.2rem, 2.6vw, ${headlineSizePx}px)`,
                 color: headlineColor,
@@ -139,7 +170,7 @@ export function PromoBannerClient({
             >
               {headline}
             </h2>
-            <p className="mt-3 max-w-lg" style={{ fontSize: sublineSizePx, color: sublineColor }}>
+            <p className="mt-3 max-w-lg break-words" style={{ fontSize: sublineSizePx, color: sublineColor }}>
               {subline}
             </p>
             <Link

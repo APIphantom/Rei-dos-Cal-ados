@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Crown, Facebook, Instagram, Lock, ShieldCheck, Truck } from "lucide-react";
+import { Facebook, Instagram, Lock, ShieldCheck, Truck } from "lucide-react";
+import { BrandLogo } from "@/components/profile/brand-logo";
 import { Container } from "@/components/ui/container";
 import type { StorePublicSettings } from "@/lib/store-public-settings";
 
@@ -28,11 +29,8 @@ export function Footer({ store }: { store: StorePublicSettings }) {
       <Container className="py-12">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
           <div>
-            <div className="mb-4 flex items-center gap-2">
-              <Crown className="h-5 w-5 text-primary" />
-              <p className="font-heading text-base font-bold">
-                Rei Dos <span className="text-primary">Calçados</span>
-              </p>
+            <div className="mb-4">
+              <BrandLogo compact className="opacity-90 hover:opacity-100" />
             </div>
             <p className="typo-small leading-relaxed">
               Estilo começa pelos pés. Seleção premium, conforto real e um atendimento que resolve.

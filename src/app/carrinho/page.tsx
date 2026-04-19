@@ -45,8 +45,8 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-8 lg:grid-cols-[1fr_420px]">
-            <div className="space-y-4">
+          <div className="grid min-w-0 gap-8 lg:grid-cols-[1fr_420px]">
+            <div className="min-w-0 space-y-4">
               {lines.map((line) => (
                 <div
                   key={`${line.product.id}-${line.size}-${line.color}`}
@@ -113,7 +113,7 @@ export default function CartPage() {
               ))}
             </div>
 
-            <aside className="h-fit rounded-3xl border border-border bg-card p-6">
+            <aside className="h-fit min-w-0 rounded-3xl border border-border bg-card p-6">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
                 Resumo
               </p>

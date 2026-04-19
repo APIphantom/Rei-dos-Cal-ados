@@ -14,10 +14,9 @@ export type HeroMedia = {
 type Props = {
   hero: HeroMedia;
   interactive?: boolean;
-  /** Mostrado apenas em /admin/customize: arrasta o bloco de texto */
   editable?: boolean;
-  /** Largura CSS esperada para `next/image` `sizes` (preview no admin ≠ largura real da home). */
   heroImageSizes?: string;
+  heroImageSizesMobile?: string;
 };
 
 const alignClass: Record<string, string> = {
@@ -28,14 +27,19 @@ const alignClass: Record<string, string> = {
 
 const DEFAULT_HERO_IMAGE_SIZES =
   "(max-width: 1920px) 100vw, 1920px";
+const DEFAULT_HERO_MOBILE_IMAGE_SIZES = "100vw";
+
+/** Mesma janela de altura do vídeo no hero: secção compacta para o resto da página (ex.: marcas) aparecer acima da dobra. */
+const HERO_MEDIA_VIEWPORT =
+  "relative z-0 h-[min(72svh,max(22rem,calc(100vw*9/21)))] w-full overflow-hidden";
 
 export function HomeHeroClient({
   hero,
   interactive = true,
   editable = false,
   heroImageSizes = DEFAULT_HERO_IMAGE_SIZES,
+  heroImageSizesMobile = DEFAULT_HERO_MOBILE_IMAGE_SIZES,
 }: Props) {
-  /** Mesmo retângulo que define % de left/top do texto (deve ser o pai position:relative do bloco). */
   const constraintsRef = useRef<HTMLDivElement>(null);
   const {
     overlayOpacity,
@@ -66,6 +70,9 @@ export function HomeHeroClient({
     imageOverride,
     imageOverrideWidth,
     imageOverrideHeight,
+    imageOverrideMobile,
+    imageOverrideMobileWidth,
+    imageOverrideMobileHeight,
     imageObjectPosition,
     patch,
   } = useHeroUiStore();
@@ -86,6 +93,16 @@ export function HomeHeroClient({
     typeof imageOverrideHeight === "number" &&
     imageOverrideWidth > 0 &&
     imageOverrideHeight > 0;
+
+  const hasHeroMobileDims =
+    useImageOverride &&
+    !!imageOverrideMobile &&
+    typeof imageOverrideMobileWidth === "number" &&
+    typeof imageOverrideMobileHeight === "number" &&
+    imageOverrideMobileWidth > 0 &&
+    imageOverrideMobileHeight > 0;
+
+  const showDualLocalHero = Boolean(hasHeroImageDims && hasHeroMobileDims);
 
   const ctaBackgroundColor = ctaBg ?? HERO_UI_DEFAULTS.ctaBackgroundColor;
   const ctaForegroundColor = ctaFg ?? HERO_UI_DEFAULTS.ctaForegroundColor;
@@ -144,7 +161,7 @@ export function HomeHeroClient({
         {eyebrow}
       </p>
       <h1
-        className="mt-3 font-heading leading-[1.08] tracking-tight"
+        className="mt-3 break-words font-heading leading-[1.08] tracking-tight"
         style={{
           fontSize: `clamp(1.35rem, 3.2vw, ${headlineSizePx}px)`,
           maxWidth: "20ch",
@@ -155,7 +172,7 @@ export function HomeHeroClient({
         {headline}
       </h1>
       <p
-        className="mt-4 max-w-lg"
+        className="mt-4 max-w-lg break-words"
         style={{
           fontSize: sublineSizePx,
           color: sublineColor,
@@ -188,29 +205,50 @@ export function HomeHeroClient({
     <section className="border-b border-border/40">
       <div className="relative isolate w-full overflow-hidden bg-muted/30">
         {mediaUrl &&
-          (hasHeroImageDims ? (
-            <Image
-              src={mediaUrl}
-              alt=""
-              width={imageOverrideWidth!}
-              height={imageOverrideHeight!}
-              priority
-              sizes={heroImageSizes}
-              className="h-auto w-full max-w-full align-middle"
-              unoptimized={mediaUrl.startsWith("data:")}
-            />
+          (showDualLocalHero ? (
+            <>
+              <div className={`md:hidden ${HERO_MEDIA_VIEWPORT}`}>
+                <Image
+                  src={imageOverrideMobile!}
+                  alt=""
+                  fill
+                  priority
+                  sizes={heroImageSizesMobile}
+                  className="object-cover"
+                  style={{ objectPosition: imageObjectPosition }}
+                  unoptimized={imageOverrideMobile!.startsWith("data:")}
+                />
+              </div>
+              <div className={`hidden md:block ${HERO_MEDIA_VIEWPORT}`}>
+                <Image
+                  src={imageOverride!}
+                  alt=""
+                  fill
+                  priority
+                  sizes={heroImageSizes}
+                  className="object-cover"
+                  style={{ objectPosition: imageObjectPosition }}
+                  unoptimized={imageOverride!.startsWith("data:")}
+                />
+              </div>
+            </>
           ) : (
-            <img
-              src={mediaUrl}
-              alt=""
-              className="block w-full h-auto max-w-full align-middle"
-              decoding="async"
-              fetchPriority="high"
-            />
+            <div className={HERO_MEDIA_VIEWPORT}>
+              <Image
+                src={mediaUrl}
+                alt=""
+                fill
+                priority
+                sizes={heroImageSizes}
+                className="object-cover"
+                style={{ objectPosition: imageObjectPosition }}
+                unoptimized={mediaUrl.startsWith("data:")}
+              />
+            </div>
           ))}
 
         {showVideo && (
-          <div className="relative z-0 h-[min(72svh,max(22rem,calc(100vw*9/21)))] w-full">
+          <div className={HERO_MEDIA_VIEWPORT}>
             <video
               className="absolute inset-0 z-0 h-full w-full object-cover"
               style={{ objectPosition: imageObjectPosition }}
@@ -226,7 +264,7 @@ export function HomeHeroClient({
 
         {!mediaUrl && !showVideo && (
           <div
-            className="relative z-0 min-h-[22rem] bg-gradient-to-br from-muted via-background to-muted md:min-h-[28rem]"
+            className={`${HERO_MEDIA_VIEWPORT} bg-gradient-to-br from-muted via-background to-muted`}
             aria-hidden
           />
         )}

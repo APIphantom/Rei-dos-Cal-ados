@@ -1,20 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
-/**
- * Promove um usuário a ADMIN pelo email (uma vez).
- * Requer no .env.local:
- *   SUPABASE_SERVICE_ROLE_KEY=... (Dashboard → Project Settings → API → service_role)
- *   ADMIN_SETUP_SECRET=... (string longa aleatória)
- *
- * Chamada (apenas local ou rede confiável):
- * curl -X POST http://localhost:3000/api/admin/setup-role \
- *   -H "Content-Type: application/json" \
- *   -H "x-admin-setup-secret: SEU_SECRET" \
- *   -d "{\"email\":\"seu@email.com\"}"
- *
- * Depois remova ADMIN_SETUP_SECRET ou deixe vazio em produção.
- */
+// Promove um utilizador a ADMIN por email (uso restrito; requer segredo de configuração no servidor).
 export async function POST(req: Request) {
   const secret = process.env.ADMIN_SETUP_SECRET;
   if (!secret) {
@@ -40,15 +27,13 @@ export async function POST(req: Request) {
 
   const admin = createServiceRoleClient();
   if (!admin) {
-    return NextResponse.json(
-      { error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Configuração do servidor incompleta." }, { status: 500 });
   }
 
   const { data: list, error: listErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
   if (listErr) {
-    return NextResponse.json({ error: listErr.message }, { status: 500 });
+    console.error("[setup-role] listUsers", listErr.message);
+    return NextResponse.json({ error: "Não foi possível concluir a operação." }, { status: 500 });
   }
 
   const user = list.users.find((u) => u.email?.toLowerCase() === email);
@@ -70,7 +55,8 @@ export async function POST(req: Request) {
   );
 
   if (upErr) {
-    return NextResponse.json({ error: upErr.message }, { status: 500 });
+    console.error("[setup-role] upsert profile", upErr.message);
+    return NextResponse.json({ error: "Não foi possível concluir a operação." }, { status: 500 });
   }
 
   return NextResponse.json({

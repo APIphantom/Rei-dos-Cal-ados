@@ -27,6 +27,8 @@ export const BANNER_UI_DEFAULTS = {
   ctaBackgroundColor: "hsl(var(--primary))",
   ctaForegroundColor: "hsl(var(--primary-foreground))",
   image: null as string | null,
+  /** Imagem opcional para viewport estreita (Tailwind md); mesma proporção do recorte da desktop. */
+  imageMobile: null as string | null,
   imageObjectPosition: "50% 45%",
 };
 
@@ -36,18 +38,28 @@ type BannerUiActions = {
   patch: (p: Partial<BannerUiState>) => void;
   reset: () => void;
   setBannerImage: (dataUrl: string | null) => void;
+  setBannerImageMobile: (dataUrl: string | null) => void;
 };
 
-const MAX_PERSIST_IMAGE_CHARS = 380_000;
+export const MAX_PERSIST_BANNER_IMAGE_CHARS = 180_000;
+
+export const BANNER_JPEG_COMPRESS_MAX_BYTES = 125_000;
 
 export function sliceBannerStateForPersist(s: BannerUiState & BannerUiActions) {
-  const { patch, reset, setBannerImage, image, ...rest } = s;
-  const keepImg = typeof image === "string" && image.length > 0 && image.length <= MAX_PERSIST_IMAGE_CHARS;
-  const tooBig = typeof image === "string" && image.length > MAX_PERSIST_IMAGE_CHARS;
-  const persistedEnabled = keepImg ? s.enabled : tooBig ? false : s.enabled;
+  const { patch, reset, setBannerImage, setBannerImageMobile, image, imageMobile, ...rest } = s;
+  const cap = MAX_PERSIST_BANNER_IMAGE_CHARS;
+
+  const keepDesktop = typeof image === "string" && image.length > 0 && image.length <= cap;
+  const desktopTooBig = typeof image === "string" && image.length > cap;
+
+  const keepMobile = typeof imageMobile === "string" && imageMobile.length > 0 && imageMobile.length <= cap;
+
+  const persistedEnabled = desktopTooBig ? false : s.enabled;
+
   return {
     ...rest,
-    image: keepImg ? image : null,
+    image: keepDesktop ? image : null,
+    imageMobile: keepMobile ? imageMobile : null,
     enabled: persistedEnabled,
   };
 }
@@ -59,6 +71,7 @@ export const useBannerUiStore = create<BannerUiState & BannerUiActions>()(
       patch: (p) => set((s) => ({ ...s, ...p })),
       reset: () => set({ ...BANNER_UI_DEFAULTS }),
       setBannerImage: (image) => set({ image }),
+      setBannerImageMobile: (imageMobile) => set({ imageMobile }),
     }),
     {
       name: "rdc-banner-ui-v1",
