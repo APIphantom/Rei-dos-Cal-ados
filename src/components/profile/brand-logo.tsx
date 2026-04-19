@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { STORE_LOGO } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -21,15 +22,14 @@ export function BrandLogo({ className, priority = false, compact = false }: Prop
       aria-label="Rei dos Calçados — Início"
     >
       <Image
-        src="/logo-rei-dos-calcados.svg"
+        src={STORE_LOGO.src}
         alt="Rei dos Calçados"
-        width={200}
-        height={40}
+        width={STORE_LOGO.width}
+        height={STORE_LOGO.height}
         priority={priority}
-        unoptimized
         className={cn(
-          "w-auto transition-transform duration-300",
-          compact ? "h-6 sm:h-7" : "h-7 sm:h-8 md:h-9"
+          "h-auto w-auto object-contain transition-transform duration-300",
+          compact ? "h-7 sm:h-8" : "h-9 sm:h-10 md:h-11"
         )}
       />
     </Link>

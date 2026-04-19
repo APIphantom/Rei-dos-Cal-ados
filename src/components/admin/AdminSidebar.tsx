@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Package, Palette, Settings, ShoppingBag, Store } from "lucide-react";
+import { STORE_LOGO } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -24,8 +26,14 @@ export function AdminSidebar() {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[#1f1f1f] px-5 py-6">
-        <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#F59E0B]">Rei dos Calçados</p>
-        <p className="mt-1 font-heading text-lg font-bold tracking-tight">Admin</p>
+        <Image
+          src={STORE_LOGO.src}
+          alt="Rei dos Calçados"
+          width={STORE_LOGO.width}
+          height={STORE_LOGO.height}
+          className="h-10 w-auto max-w-[200px] object-contain object-left"
+        />
+        <p className="mt-3 font-heading text-lg font-bold tracking-tight">Admin</p>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {items.map(({ href, label, icon: Icon }) => {

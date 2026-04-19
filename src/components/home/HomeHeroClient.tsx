@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useBoundedPercentDrag } from "@/hooks/useBoundedPercentDrag";
 import { HERO_UI_DEFAULTS, useHeroUiStore } from "@/features/storefront/hero-ui-store";
+import { StoreEyebrowContent } from "@/components/home/StoreEyebrowContent";
 export type HeroMedia = {
   type: "none" | "image" | "video";
   url: string | null;
@@ -151,15 +152,12 @@ export function HomeHeroClient({
       }}
       {...(editable ? dragProps : {})}
     >
-      <p
-        className="font-bold uppercase tracking-[0.28em]"
-        style={{
-          fontSize: eyebrowSizePx,
-          color: eyebrowColor,
-        }}
-      >
-        {eyebrow}
-      </p>
+      <StoreEyebrowContent
+        eyebrow={eyebrow}
+        eyebrowSizePx={eyebrowSizePx}
+        eyebrowColor={eyebrowColor}
+        textAlign={textAlign}
+      />
       <h1
         className="mt-3 break-words font-heading leading-[1.08] tracking-tight"
         style={{
