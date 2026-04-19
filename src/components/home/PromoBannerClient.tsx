@@ -6,7 +6,6 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useBoundedPercentDrag } from "@/hooks/useBoundedPercentDrag";
 import { BANNER_UI_DEFAULTS, useBannerUiStore } from "@/features/storefront/banner-ui-store";
-import { StoreEyebrowContent } from "@/components/home/StoreEyebrowContent";
 
 type Props = {
   interactive?: boolean;
@@ -155,12 +154,12 @@ export function PromoBannerClient({
               }}
               {...(editable ? dragProps : {})}
             >
-            <StoreEyebrowContent
-              eyebrow={eyebrow}
-              eyebrowSizePx={eyebrowSizePx}
-              eyebrowColor={eyebrowColor}
-              textAlign={textAlign}
-            />
+            <p
+              className="font-bold uppercase tracking-[0.28em]"
+              style={{ fontSize: eyebrowSizePx, color: eyebrowColor }}
+            >
+              {eyebrow}
+            </p>
             <h2
               className="mt-2 font-heading leading-tight tracking-tight break-words"
               style={{

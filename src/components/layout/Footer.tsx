@@ -1,7 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Facebook, Instagram, Lock, ShieldCheck, Truck } from "lucide-react";
-import { STORE_LOGO } from "@/lib/brand";
 import { BrandLogo } from "@/components/profile/brand-logo";
 import { Container } from "@/components/ui/container";
 import type { StorePublicSettings } from "@/lib/store-public-settings";
@@ -114,16 +112,8 @@ export function Footer({ store }: { store: StorePublicSettings }) {
             </span>
           </div>
 
-          <p className="flex flex-wrap items-center justify-start gap-x-2 gap-y-1 text-left text-xs text-muted-foreground md:justify-end">
-            <span>© {new Date().getFullYear()}</span>
-            <Image
-              src={STORE_LOGO.src}
-              alt="Rei dos Calçados"
-              width={STORE_LOGO.width}
-              height={STORE_LOGO.height}
-              className="inline-block h-5 w-auto object-contain opacity-90"
-            />
-            <span>— Todos os direitos reservados.</span>
+          <p className="text-left text-xs text-muted-foreground md:text-right">
+            © {new Date().getFullYear()} Rei Dos Calçados — Todos os direitos reservados.
           </p>
         </div>
       </Container>

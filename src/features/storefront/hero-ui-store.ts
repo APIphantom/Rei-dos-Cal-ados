@@ -11,8 +11,7 @@ export const HERO_UI_DEFAULTS = {
   gradientAngle: 180,
   gradientFrom: "rgba(3, 7, 18, 0.2)",
   gradientTo: "rgba(3, 7, 18, 0.82)",
-  /** Vazio = etiqueta do hero mostra a logo da loja (ver `StoreEyebrowContent`). */
-  eyebrow: "",
+  eyebrow: "Rei Dos Calçados",
   headline: "Estilo começa pelos pés",
   subline: "Frete grátis · 6x sem juros",
   primaryLabel: "Ver coleção",
