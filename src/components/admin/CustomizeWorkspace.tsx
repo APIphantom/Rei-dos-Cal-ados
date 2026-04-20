@@ -291,7 +291,8 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                       try {
                         const { dataUrl, width, height } = await fileToCompressedJpegDataUrl(f, {
                           maxBytes: HERO_JPEG_COMPRESS_MAX_BYTES,
-                          maxSide: 1920,
+                          maxSide: 2560,
+                          initialQuality: 0.92,
                         });
                         if (dataUrl.length > MAX_PERSIST_HERO_IMAGE_CHARS) {
                           toast.error(
@@ -353,7 +354,8 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                       try {
                         const { dataUrl, width, height } = await fileToCompressedJpegDataUrl(f, {
                           maxBytes: HERO_JPEG_COMPRESS_MAX_BYTES,
-                          maxSide: 1920,
+                          maxSide: 1600,
+                          initialQuality: 0.92,
                         });
                         if (dataUrl.length > MAX_PERSIST_HERO_IMAGE_CHARS) {
                           toast.error(

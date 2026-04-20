@@ -33,8 +33,16 @@ const alignClass: Record<string, string> = {
   right: "text-right items-end",
 };
 
-const DEFAULT_HERO_IMAGE_SIZES = "(max-width: 1920px) 100vw, 1920px";
-const DEFAULT_HERO_MOBILE_IMAGE_SIZES = "100vw";
+/**
+ * Pedimos ~10% a mais que a largura útil para compensar o zoom do .hero-ken-burns (até +8,5%)
+ * e telas retina, sem esticar tanto quanto 2× o viewport inteiro.
+ */
+const DEFAULT_HERO_IMAGE_SIZES =
+  "(max-width: 767px) min(110vw, 900px), min(110vw, 2560px)";
+const DEFAULT_HERO_MOBILE_IMAGE_SIZES = "min(110vw, 900px)";
+
+/** Next/Image default é 75; heros panorâmicos beneficiam de JPEG/WebP mais fiéis. */
+const HERO_IMAGE_QUALITY = 90;
 
 const HERO_MEDIA_VIEWPORT =
   "relative z-0 h-[min(72svh,max(22rem,calc(100vw*9/21)))] w-full overflow-hidden";
@@ -388,6 +396,7 @@ export function HomeHeroClient({
                       alt=""
                       fill
                       priority
+                      quality={HERO_IMAGE_QUALITY}
                       sizes={heroImageSizesMobile}
                       className="object-cover"
                       style={{ objectPosition: imageObjectPosition }}
@@ -414,6 +423,7 @@ export function HomeHeroClient({
                       alt=""
                       fill
                       priority
+                      quality={HERO_IMAGE_QUALITY}
                       sizes={heroImageSizes}
                       className="object-cover"
                       style={{ objectPosition: imageObjectPosition }}
@@ -442,6 +452,7 @@ export function HomeHeroClient({
                     alt=""
                     fill
                     priority
+                    quality={HERO_IMAGE_QUALITY}
                     sizes={heroImageSizes}
                     className="object-cover"
                     style={{ objectPosition: imageObjectPosition }}

@@ -73,9 +73,10 @@ type HeroUiActions = {
   ) => void;
 };
 
-export const MAX_PERSIST_HERO_IMAGE_CHARS = 180_000;
+/** Base64 comprimido (~4/3 do binário); precisa cobrir JPEGs hero mais nitidos. */
+export const MAX_PERSIST_HERO_IMAGE_CHARS = 300_000;
 
-export const HERO_JPEG_COMPRESS_MAX_BYTES = 125_000;
+export const HERO_JPEG_COMPRESS_MAX_BYTES = 200_000;
 
 export function sliceHeroStateForPersist(s: HeroUiState & HeroUiActions) {
   const { patch, reset, setImageOverride, setImageOverrideMobile, imageOverride, imageOverrideMobile, ...rest } = s;
