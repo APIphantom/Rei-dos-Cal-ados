@@ -3,9 +3,12 @@
 import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Image as ImageIcon, Loader2, Upload, Video } from "lucide-react";
-import { saveHeroSettings, uploadHeroMedia } from "@/features/admin/site/actions";
+import { createHeroMediaUpload, saveHeroSettings } from "@/features/admin/site/actions";
 import type { HeroMediaType } from "@/lib/site-settings";
+import { BUNDLED_HERO_ART_URL, getHeroUploadDescriptor, MAX_HERO_UPLOAD_BYTES } from "@/lib/hero-media";
+import { mapStorageUploadError } from "@/lib/storage-errors";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const ACCEPT_IMAGE = "image/png,image/jpeg,image/jpg,image/webp,image/avif,.png,.jpg,.jpeg,.webp,.avif";
 const ACCEPT_VIDEO = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
@@ -20,19 +23,75 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
   const [url, setUrl] = useState(initialUrl ?? "");
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
+  const [uploadStage, setUploadStage] = useState<"signing" | "uploading" | "publishing" | null>(null);
 
-  const uploadFile = useCallback(async (file: File) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await uploadHeroMedia(fd);
-    if (!res.ok) {
-      toast.error(res.error);
-      return;
+  const uploadFile = useCallback(async (file: File, descriptor: NonNullable<ReturnType<typeof getHeroUploadDescriptor>>) => {
+    let stage: "signing" | "uploading" | "publishing" = "signing";
+    try {
+      const plan = await createHeroMediaUpload({ name: file.name, type: file.type, size: file.size });
+      if (!plan.ok) {
+        toast.error(plan.error);
+        return;
+      }
+      if (!plan.path || !plan.token || !plan.publicUrl) {
+        console.error("[admin] hero media signer returned incomplete data", {
+          pathPresent: Boolean(plan.path),
+          tokenPresent: Boolean(plan.token),
+          publicUrlPresent: Boolean(plan.publicUrl),
+        });
+        toast.error("O armazenamento não devolveu uma autorização válida. Tente novamente.");
+        return;
+      }
+
+      stage = "uploading";
+      setUploadStage("uploading");
+      const supabase = createClient();
+      const { data: uploaded, error: uploadError } = await supabase.storage
+        .from("hero-media")
+        .uploadToSignedUrl(plan.path, plan.token, file, {
+          contentType: descriptor.contentType,
+          cacheControl: "3600",
+        });
+      if (uploadError || !uploaded?.path) {
+        const errorMessage = uploadError?.message ?? "O armazenamento não confirmou o arquivo enviado.";
+        console.error("[admin] hero media upload failed", {
+          message: errorMessage,
+          status: uploadError?.status,
+          statusCode: uploadError?.statusCode,
+          fileSize: file.size,
+          contentType: descriptor.contentType,
+        });
+        toast.error(mapStorageUploadError(errorMessage));
+        return;
+      }
+
+      setType(descriptor.kind);
+      setUrl(plan.publicUrl);
+
+      stage = "publishing";
+      setUploadStage("publishing");
+      const saved = await saveHeroSettings({ hero_media_type: descriptor.kind, hero_media_url: plan.publicUrl });
+      if (!saved.ok) {
+        toast.error(`Arquivo enviado, mas não foi publicado: ${saved.error}`);
+        return;
+      }
+
+      toast.success("Arquivo enviado e publicado na loja.");
+    } catch (error) {
+      console.error("[admin] hero media upload flow failed", {
+        stage,
+        error: error instanceof Error ? error.message : String(error),
+        fileSize: file.size,
+        contentType: descriptor.contentType,
+      });
+      toast.error(
+        stage === "signing"
+          ? "Não foi possível preparar o envio. Verifique sua sessão e tente novamente."
+          : stage === "publishing"
+            ? "O arquivo foi enviado, mas não foi possível publicar a alteração. Tente salvar o Hero novamente."
+            : "O navegador não conseguiu conectar ao armazenamento. Verifique a conexão e tente novamente."
+      );
     }
-    const isVideo = file.type.startsWith("video/");
-    setType(isVideo ? "video" : "image");
-    setUrl(res.url);
-    toast.success("Arquivo enviado. Clique em Salvar para publicar na loja.");
   }, []);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -40,29 +99,24 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
     e.target.value = "";
     if (!file) return;
 
-    if (file.type.startsWith("video/")) {
-      setType("video");
-      setUploading(true);
-      try {
-        await uploadFile(file);
-      } finally {
-        setUploading(false);
-      }
+    const descriptor = getHeroUploadDescriptor(file);
+    if (!descriptor) {
+      toast.error("Formato não suportado. Use PNG, JPG, WebP ou AVIF, ou MP4, WebM e MOV.");
+      return;
+    }
+    if (file.size > MAX_HERO_UPLOAD_BYTES) {
+      toast.error("O arquivo deve ter até 48 MB. Comprima-o e tente novamente.");
       return;
     }
 
-    if (file.type.startsWith("image/")) {
-      setType("image");
-      setUploading(true);
-      try {
-        await uploadFile(file);
-      } finally {
-        setUploading(false);
-      }
-      return;
+    setUploading(true);
+    setUploadStage("signing");
+    try {
+      await uploadFile(file, descriptor);
+    } finally {
+      setUploading(false);
+      setUploadStage(null);
     }
-
-    toast.error("Use PNG, JPG, WebP, AVIF (imagens) ou MP4, WebM, MOV (vídeo).");
   }
 
   function submit() {
@@ -78,11 +132,12 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
     });
   }
 
-  const showPreview = type !== "none" && url.trim().startsWith("http");
+  const showPreview =
+    type !== "none" && (url.trim().startsWith("http") || url.trim() === BUNDLED_HERO_ART_URL);
   const fileAccept = type === "video" ? ACCEPT_VIDEO : type === "image" ? ACCEPT_IMAGE : `${ACCEPT_IMAGE},${ACCEPT_VIDEO}`;
 
   return (
-    <div className="space-y-8 rounded-2xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 sm:p-8">
+    <div className="admin-panel min-w-0 space-y-8 p-4 sm:p-8">
       <div>
         <h2 className="font-heading text-lg font-bold text-white">Mídia do hero (página inicial)</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
@@ -120,15 +175,15 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
       </div>
 
       {type !== "none" && (
-        <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
-          <div className="space-y-4">
-            <label className="block space-y-2">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8">
+          <div className="min-w-0 space-y-4">
+            <label className="block min-w-0 space-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">URL da mídia (https)</span>
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://..."
-                className="h-11 w-full rounded-xl border border-[#2a2a2a] bg-[#111] px-4 text-sm text-white outline-none focus:border-[#F59E0B]"
+                className="admin-field h-11 min-w-0 w-full rounded-xl px-4 text-sm outline-none"
               />
             </label>
 
@@ -136,23 +191,44 @@ export function HeroSettingsForm({ initialType, initialUrl }: Props) {
               <input
                 type="file"
                 accept={fileAccept}
-                className="hidden"
+                disabled={uploading || pending}
+                className="sr-only"
                 id="hero-file"
                 onChange={onFile}
               />
-              <label htmlFor="hero-file">
-                <span className="inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111] px-4 py-2.5 text-sm text-zinc-200 hover:border-[#F59E0B]/50 sm:w-auto">
+              <label htmlFor="hero-file" className="min-w-0">
+                <span className={cn("inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111] px-4 py-2.5 text-sm text-zinc-200 hover:border-[#F59E0B]/50 sm:w-auto", (uploading || pending) && "cursor-not-allowed opacity-60")}>
                   {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  {type === "video" ? "Enviar vídeo" : type === "image" ? "Enviar imagem" : "Enviar imagem ou vídeo"}
+                  {uploading
+                    ? uploadStage === "signing"
+                      ? "Preparando envio…"
+                      : uploadStage === "publishing"
+                        ? "Publicando mídia…"
+                        : "Enviando arquivo…"
+                    : type === "video"
+                      ? "Enviar vídeo"
+                      : type === "image"
+                        ? "Enviar imagem"
+                        : "Enviar imagem ou vídeo"}
                 </span>
               </label>
               <p className="mt-2 text-[11px] text-zinc-600">
-                Imagens: PNG, JPG, WebP, AVIF. Vídeo: MP4, WebM ou MOV. O tipo é detetado pelo ficheiro.
+                Imagens: PNG, JPG, WebP, AVIF. Vídeo: MP4, WebM ou MOV. Tamanho máximo: 48 MB. Enviar publica a mídia na loja.
               </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setType("image");
+                  setUrl(BUNDLED_HERO_ART_URL);
+                }}
+                className="mt-3 min-h-10 rounded-lg border border-[#F59E0B]/30 px-3 py-2 text-xs font-semibold text-[#F59E0B] transition-colors hover:bg-[#F59E0B]/10"
+              >
+                Selecionar arte aprimorada incluída no projeto
+              </button>
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Pré-visualização</p>
             <div
               className={cn(

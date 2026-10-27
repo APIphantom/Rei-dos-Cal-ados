@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { isBundledHeroArtUrl } from "@/lib/hero-media";
 
 export type HeroMediaType = "none" | "image" | "video";
 
@@ -24,7 +25,10 @@ export async function getHeroSettings(): Promise<HeroSettings> {
 
     const t = data.hero_media_type as string;
     const url = data.hero_media_url as string | null;
-    if ((t === "image" || t === "video") && url?.startsWith("http")) {
+    if (
+      (t === "image" || t === "video") &&
+      (url?.startsWith("http") || (t === "image" && isBundledHeroArtUrl(url)))
+    ) {
       return { type: t, url };
     }
     return { type: "none", url: null };

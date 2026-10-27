@@ -5,19 +5,27 @@ import { BrandsCarousel } from "@/components/home/BrandsCarousel";
 import { FeaturedProduct } from "@/components/home/FeaturedProduct";
 import { HomeHero } from "@/components/home/HomeHero";
 import { PromoBannerClient } from "@/components/home/PromoBannerClient";
+import { PromotionSection } from "@/components/home/PromotionSection";
 import { TestimonialsCarousel } from "@/components/home/TestimonialsCarousel";
 import { CatalogSection } from "@/features/products/components/CatalogSection";
 import { STORE_BRANDS } from "@/config/store-brands";
 import { getAllProducts, getFeaturedProduct } from "@/features/products/services/products";
+import { getActivePromotions } from "@/features/promotions/service";
 
 export default async function HomePage() {
-  const [products, featured] = await Promise.all([getAllProducts(), getFeaturedProduct()]);
+  const [products, featured, promotions] = await Promise.all([
+    getAllProducts(),
+    getFeaturedProduct(),
+    getActivePromotions(),
+  ]);
 
   return (
     <>
       <HomeHero />
 
       <PromoBannerClient />
+
+      <PromotionSection promotions={promotions} />
 
       <BrandsCarousel brands={STORE_BRANDS} />
 

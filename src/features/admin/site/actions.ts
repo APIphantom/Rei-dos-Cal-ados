@@ -1,10 +1,12 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { mapStorageUploadError } from "@/lib/storage-errors";
 import { getSessionUser, getProfileForUser } from "@/lib/auth/server";
 import type { HeroMediaType } from "@/lib/site-settings";
+import { getHeroUploadDescriptor, isBundledHeroArtUrl, MAX_HERO_UPLOAD_BYTES } from "@/lib/hero-media";
 
 const saveSchema = z.object({
   hero_media_type: z.enum(["none", "image", "video"]),
@@ -36,7 +38,8 @@ export async function saveHeroSettings(payload: unknown): Promise<{ ok: true } |
   if (type === "none") {
     url = null;
   }
-  if ((type === "image" || type === "video") && !url?.startsWith("http")) {
+  const isBundledHeroArt = type === "image" && isBundledHeroArtUrl(url);
+  if ((type === "image" || type === "video") && !url?.startsWith("http") && !isBundledHeroArt) {
     return { ok: false, error: "Informe uma URL válida (https) ou envie um arquivo." };
   }
 
@@ -56,9 +59,13 @@ export async function saveHeroSettings(payload: unknown): Promise<{ ok: true } |
 
   if (error) {
     console.error("[admin] saveHeroSettings", error.message);
+    if (/row.level security|permission denied|unauthorized/i.test(error.message)) {
+      return { ok: false, error: "Sua conta não tem permissão para salvar as configurações da loja." };
+    }
     return { ok: false, error: "Não foi possível guardar as definições. Tente novamente." };
   }
 
+  revalidatePath("/");
   return { ok: true };
 }
 
@@ -116,35 +123,45 @@ export async function saveStoreContactSettings(
   return { ok: true };
 }
 
-export async function uploadHeroMedia(formData: FormData): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+export async function createHeroMediaUpload(
+  payload: unknown
+): Promise<{ ok: true; path: string; token: string; publicUrl: string } | { ok: false; error: string }> {
   try {
     await requireAdmin();
   } catch {
     return { ok: false, error: "Não autorizado." };
   }
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Selecione um arquivo." };
+  const parsed = z.object({ name: z.string().min(1), type: z.string(), size: z.number().int().positive() }).safeParse(payload);
+  if (!parsed.success) {
+    return { ok: false, error: "Selecione um arquivo válido." };
+  }
+  if (parsed.data.size > MAX_HERO_UPLOAD_BYTES) {
+    return { ok: false, error: "O arquivo deve ter até 48 MB. Comprima-o e tente novamente." };
   }
 
-  const supabase = await createClient();
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  const safeExt = ext && /^[a-z0-9]+$/.test(ext) ? ext : "bin";
-  const path = `hero/${Date.now()}-${crypto.randomUUID()}.${safeExt}`;
-
-  const { error } = await supabase.storage.from("hero-media").upload(path, file, {
-    contentType: file.type || "application/octet-stream",
-    upsert: true,
-  });
-
-  if (error) {
-    console.error("[admin] uploadHeroMedia", error.message);
-    return { ok: false, error: mapStorageUploadError(error.message) };
+  const descriptor = getHeroUploadDescriptor(parsed.data);
+  if (!descriptor) {
+    return { ok: false, error: "Formato não suportado. Use PNG, JPG, WebP ou AVIF, ou MP4, WebM e MOV." };
   }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("hero-media").getPublicUrl(path);
-  return { ok: true, url: publicUrl };
+  try {
+    const supabase = await createClient();
+    const path = `hero/${Date.now()}-${crypto.randomUUID()}.${descriptor.extension}`;
+    const { data, error } = await supabase.storage.from("hero-media").createSignedUploadUrl(path, { upsert: false });
+
+    if (error) {
+      console.error("[admin] createHeroMediaUpload", error.message);
+      return { ok: false, error: mapStorageUploadError(error.message) };
+    }
+    if (!data?.path || !data.token) {
+      console.error("[admin] createHeroMediaUpload returned incomplete signed upload data");
+      return { ok: false, error: "O armazenamento não devolveu uma autorização válida. Tente novamente." };
+    }
+    const { data: { publicUrl } } = supabase.storage.from("hero-media").getPublicUrl(data.path);
+    return { ok: true, path: data.path, token: data.token, publicUrl };
+  } catch (error) {
+    console.error("[admin] createHeroMediaUpload", error);
+    return { ok: false, error: "Não foi possível conectar ao armazenamento. Verifique a conexão e tente novamente." };
+  }
 }

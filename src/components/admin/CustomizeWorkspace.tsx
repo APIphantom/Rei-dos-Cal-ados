@@ -53,7 +53,7 @@ function CustomizeSubPanelTabs({
     { id: "advanced", label: "Avançado", hint: "Tipografia" },
   ];
   return (
-    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Secções do editor">
+    <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Secções do editor">
       {tabs.map((t) => (
         <button
           key={t.id}
@@ -62,7 +62,7 @@ function CustomizeSubPanelTabs({
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
           className={cn(
-            "min-w-[calc(50%-0.25rem)] rounded-xl border px-3 py-2.5 text-left transition-colors sm:min-w-0",
+            "min-h-[58px] min-w-0 rounded-xl border px-3 py-2.5 text-left transition-colors",
             value === t.id
               ? "border-[#F59E0B] bg-[#F59E0B]/15 text-[#F59E0B]"
               : "border-[#2a2a2a] text-zinc-400 hover:border-zinc-600"
@@ -76,31 +76,39 @@ function CustomizeSubPanelTabs({
   );
 }
 
-function usePreviewScale() {
+function usePreviewScale(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [scale, setScale] = useState(DESKTOP_PREVIEW_SCALE);
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     function compute() {
-      const w = window.innerWidth;
-      const horizontalPadding = w < 640 ? 24 : w < 1024 ? 48 : 64;
-      const maxOuter = Math.max(240, w - horizontalPadding);
-      const fit = maxOuter / DESKTOP_PREVIEW_WIDTH_PX;
-      const next = Math.min(DESKTOP_PREVIEW_SCALE, Math.max(0.22, fit * 0.98));
+      const current = containerRef.current;
+      if (!current) return;
+      const style = window.getComputedStyle(current);
+      const horizontalPadding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+      const availableWidth = Math.max(0, current.clientWidth - horizontalPadding);
+      const fit = availableWidth / DESKTOP_PREVIEW_WIDTH_PX;
+      const next = Math.min(DESKTOP_PREVIEW_SCALE, Math.max(0.16, fit));
       setScale(next);
     }
 
     compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(container);
     window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
-  }, []);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+  }, [containerRef]);
 
   return scale;
 }
 
 type TabKey = "hero" | "banner";
 type BannerCropTarget = "desktop" | "mobile";
-
-const PREVIEW_IMAGE_SIZES = `(max-width: ${DESKTOP_PREVIEW_WIDTH_PX}px) 100vw, ${DESKTOP_PREVIEW_WIDTH_PX}px`;
 
 function CustomizeSection({
   title,
@@ -112,18 +120,20 @@ function CustomizeSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-[#1a1a1d] bg-[#0c0c0f] p-4 shadow-sm shadow-black/20 sm:p-5">
-      <header className="mb-4 border-b border-[#2a2a2a]/80 pb-3">
+    <section className="min-w-0 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 shadow-sm shadow-black/20 sm:p-5">
+      <header className="mb-4 border-b border-white/[0.08] pb-3">
         <h3 className="text-sm font-bold tracking-tight text-white">{title}</h3>
         {subtitle ? <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-500">{subtitle}</p> : null}
       </header>
-      <div className="space-y-5">{children}</div>
+      <div className="min-w-0 space-y-5">{children}</div>
     </section>
   );
 }
 
 export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
-  const previewScale = usePreviewScale();
+  const previewViewportRef = useRef<HTMLDivElement>(null);
+  const previewScale = usePreviewScale(previewViewportRef);
+  const previewImageSizes = `${Math.round(DESKTOP_PREVIEW_WIDTH_PX * previewScale)}px`;
   const [tab, setTab] = useState<TabKey>("hero");
   const [bannerCropOpen, setBannerCropOpen] = useState(false);
   const [bannerCropSrc, setBannerCropSrc] = useState<string | null>(null);
@@ -148,7 +158,7 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
   const heroInputMobile = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
+    <div className="mx-auto min-w-0 max-w-6xl space-y-6 sm:space-y-8">
       <div className="rounded-2xl border border-[#2a2a2a] bg-gradient-to-br from-[#101012] to-[#0a0a0c] p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
@@ -246,11 +256,11 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
         </button>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,400px)_minmax(0,1fr)] xl:gap-8">
+      <div className="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,400px)_minmax(0,1fr)] 2xl:gap-8">
         <motion.aside
           initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
-          className="space-y-6"
+          className="min-w-0 space-y-6"
         >
           {tab === "hero" ? (
             <>
@@ -517,8 +527,8 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
 
               {heroPanel === "content" && (
               <CustomizeSection
-                title="Textos e alinhamento"
-                subtitle="Estes textos aparecem sobre o hero. Arraste o bloco na pré-visualização para posicionar."
+                title="Textos do Hero"
+                subtitle="No desktop, o texto fica fixo à esquerda da imagem. Em telas menores, aparece logo abaixo dela."
               >
               <FieldText label="Etiqueta pequena" value={hero.eyebrow} onChange={(eyebrow) => heroPatch({ eyebrow })} />
               <FieldText label="Título principal" value={hero.headline} onChange={(headline) => heroPatch({ headline })} />
@@ -548,23 +558,6 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                 />
               </div>
 
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Alinhamento do bloco</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(["left", "center", "right"] as HeroTextAlign[]).map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => heroPatch({ textAlign: a })}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
-                        hero.textAlign === a ? "bg-[#F59E0B] text-black" : "border border-[#2a2a2a] text-zinc-400"
-                      }`}
-                    >
-                      {a === "left" ? "Esquerda" : a === "center" ? "Centro" : "Direita"}
-                    </button>
-                  ))}
-                </div>
-              </div>
               </CustomizeSection>
               )}
 
@@ -837,18 +830,22 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
           )}
         </motion.aside>
 
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#080808] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.5)] xl:sticky xl:top-6 xl:self-start">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0b0b0a] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.5)] 2xl:sticky 2xl:top-6 2xl:self-start">
           <div className="border-b border-[#2a2a2a] bg-[#0c0c0e] px-3 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 sm:px-4 sm:text-xs sm:tracking-[0.2em]">
             <span className="flex items-center gap-2">
               <span className="hidden h-2 w-2 shrink-0 rounded-full bg-[#F59E0B] sm:inline" aria-hidden />
-              <span className="block sm:inline">Pré-visualização · arraste o bloco de texto ({tab === "hero" ? "hero" : "banner"})</span>
+              <span className="block sm:inline">
+                {tab === "hero"
+                  ? "Pré-visualização · composição fixa do Hero"
+                  : "Pré-visualização · arraste o texto para posicionar o banner"}
+              </span>
             </span>
             <span className="mt-1 block font-normal normal-case tracking-normal text-zinc-600 sm:mt-0 sm:ml-2 sm:inline">
               {DESKTOP_PREVIEW_WIDTH_PX}px · {Math.round(previewScale * 100)}%
             </span>
           </div>
           <div className="max-h-[min(70vh,920px)] overflow-x-auto overflow-y-auto overscroll-contain sm:max-h-[min(90vh,920px)]">
-            <div className="flex min-w-0 justify-center bg-[#050505] px-1 py-3 sm:px-2 sm:py-4">
+            <div ref={previewViewportRef} className="flex min-w-0 justify-center bg-[#050505] px-1 py-3 sm:px-2 sm:py-4">
               <ScaledDesktopPreview scale={previewScale}>
                 {tab === "hero" ? (
                   <div className="border-b border-border/30 bg-background text-foreground">
@@ -856,12 +853,13 @@ export function CustomizeWorkspace({ heroMedia }: { heroMedia: HeroMedia }) {
                       hero={heroMedia}
                       interactive={false}
                       editable
-                      heroImageSizes={PREVIEW_IMAGE_SIZES}
+                      heroImageSizes={previewImageSizes}
+                      heroImageSizesMobile={previewImageSizes}
                     />
                   </div>
                 ) : (
                   <div className="bg-background text-foreground">
-                    <PromoBannerClient interactive={false} editable bannerImageSizes={PREVIEW_IMAGE_SIZES} />
+                    <PromoBannerClient interactive={false} editable bannerImageSizes={previewImageSizes} />
                   </div>
                 )}
               </ScaledDesktopPreview>
@@ -921,8 +919,8 @@ function HeroImageHint() {
     <div className="rounded-lg border border-[#F59E0B]/20 bg-[#F59E0B]/[0.06] p-3 text-[11px] leading-relaxed text-zinc-400">
       <p className="font-semibold text-zinc-200">Como funciona na loja</p>
       <p className="mt-2">
-        O hero na página pública usa uma <strong className="text-zinc-300">faixa panorâmica de altura fixa</strong>; a imagem
-        encaixa com recorte suave (sem distorcer). Envios aqui são comprimidos (lado máx. 1920px).
+        A imagem mantém o foco central e usa recorte suave, sem distorção. Em telas menores, a arte aparece antes do texto;
+        no desktop, o texto permanece fixo à esquerda. Envios aqui são comprimidos (lado máx. 1920px).
       </p>
     </div>
   );
@@ -1018,7 +1016,7 @@ function FieldRange({
   onChange: (n: number) => void;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="flex justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">
         <span>{label}</span>
         <span className="text-zinc-400">{value}</span>
@@ -1047,9 +1045,9 @@ function FieldColor({
 }) {
   const hex = isLikelyHex(value) ? value : "#000000";
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex min-w-0 gap-2">
         {isLikelyHex(value) && (
           <input
             type="color"
@@ -1085,13 +1083,13 @@ function FieldText({
   onChange: (v: string) => void;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-2 w-full rounded-xl border border-[#2a2a2a] bg-[#111] px-3 py-2 text-sm outline-none focus:border-[#F59E0B]/50"
+        className="mt-2 min-w-0 w-full rounded-xl border border-[#2a2a2a] bg-[#111] px-3 py-2 text-sm outline-none focus:border-[#F59E0B]/50"
       />
     </div>
   );
@@ -1115,7 +1113,7 @@ function HeroBadgesEditor({
   const rows = value;
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Selos (badges)</p>
       <p className="text-[11px] leading-relaxed text-zinc-600">
         Para cada selo: texto na loja e ícone. «Automático» usa palavras-chave no texto (frete, juros, entrega…). Use as
@@ -1124,9 +1122,9 @@ function HeroBadgesEditor({
       {rows.map((row, i) => (
         <div
           key={`hero-badge-${i}`}
-          className="flex flex-col gap-2 rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] p-3 sm:flex-row sm:items-stretch"
+          className="grid min-w-0 grid-cols-[44px_minmax(0,1fr)] gap-x-2 gap-y-2 rounded-xl border border-white/[0.08] bg-black/20 p-3"
         >
-          <div className="flex shrink-0 flex-row items-center justify-center gap-1 sm:flex-col sm:justify-start sm:py-0.5">
+          <div className="row-span-2 flex min-w-0 flex-col justify-center gap-1 py-0.5">
             <button
               type="button"
               disabled={i === 0}
@@ -1159,37 +1157,39 @@ function HeroBadgesEditor({
               onChange(next);
             }}
             placeholder="Texto do selo"
-            className="min-h-[44px] flex-1 rounded-lg border border-[#2a2a2a] bg-[#111] px-3 py-2 text-sm outline-none focus:border-[#F59E0B]/50"
+            className="min-h-[44px] min-w-0 w-full rounded-lg border border-[#2a2a2a] bg-[#111] px-3 py-2 text-sm outline-none focus:border-[#F59E0B]/50"
           />
-          <label className="sr-only" htmlFor={`hero-badge-icon-${i}`}>
-            Ícone do selo {i + 1}
-          </label>
-          <select
-            id={`hero-badge-icon-${i}`}
-            value={row.icon}
-            onChange={(e) => {
-              const next = [...rows];
-              next[i] = {
-                ...row,
-                icon: e.target.value as HeroBadgeEntry["icon"],
-              };
-              onChange(next);
-            }}
-            className="min-h-[44px] w-full shrink-0 rounded-lg border border-[#2a2a2a] bg-[#111] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-[#F59E0B]/50 sm:w-[min(100%,240px)]"
-          >
-            {HERO_BADGE_ICON_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => onChange(rows.filter((_, j) => j !== i))}
-            className="min-h-[44px] shrink-0 rounded-lg border border-[#2a2a2a] px-3 text-xs font-semibold text-zinc-400 transition-colors hover:border-red-500/40 hover:text-red-300"
-          >
-            Remover
-          </button>
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
+            <label className="sr-only" htmlFor={`hero-badge-icon-${i}`}>
+              Ícone do selo {i + 1}
+            </label>
+            <select
+              id={`hero-badge-icon-${i}`}
+              value={row.icon}
+              onChange={(e) => {
+                const next = [...rows];
+                next[i] = {
+                  ...row,
+                  icon: e.target.value as HeroBadgeEntry["icon"],
+                };
+                onChange(next);
+              }}
+              className="min-h-[44px] min-w-0 w-full rounded-lg border border-[#2a2a2a] bg-[#111] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-[#F59E0B]/50"
+            >
+              {HERO_BADGE_ICON_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => onChange(rows.filter((_, j) => j !== i))}
+              className="min-h-[44px] shrink-0 rounded-lg border border-[#2a2a2a] px-2 text-xs font-semibold text-zinc-400 transition-colors hover:border-red-500/40 hover:text-red-300"
+            >
+              Remover
+            </button>
+          </div>
         </div>
       ))}
       <button

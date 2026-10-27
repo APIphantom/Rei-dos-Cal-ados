@@ -1,18 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
   motion,
   useReducedMotion,
-  useScroll,
-  useTransform,
 } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { normalizeHeroBadges, resolveHeroBadgeIcon } from "@/lib/hero-badge-icons";
-import { useBoundedPercentDrag } from "@/hooks/useBoundedPercentDrag";
 import { HERO_UI_DEFAULTS, useHeroUiStore } from "@/features/storefront/hero-ui-store";
+import {
+  BUNDLED_HERO_ART_URL,
+  BUNDLED_HERO_DESKTOP_WEBP_URL,
+  BUNDLED_HERO_MOBILE_ART_URL,
+  BUNDLED_HERO_MOBILE_WEBP_URL,
+} from "@/lib/hero-media";
 
 export type HeroMedia = {
   type: "none" | "image" | "video";
@@ -27,25 +30,21 @@ type Props = {
   heroImageSizesMobile?: string;
 };
 
-const alignClass: Record<string, string> = {
-  left: "text-left items-start",
-  center: "text-center items-center",
-  right: "text-right items-end",
-};
-
 /**
  * Pedimos ~10% a mais que a largura útil para compensar o zoom do .hero-ken-burns (até +8,5%)
  * e telas retina, sem esticar tanto quanto 2× o viewport inteiro.
  */
 const DEFAULT_HERO_IMAGE_SIZES =
-  "(max-width: 767px) min(110vw, 900px), min(110vw, 2560px)";
-const DEFAULT_HERO_MOBILE_IMAGE_SIZES = "min(110vw, 900px)";
+  "(max-width: 767px) 100vw, min(110vw, 2560px)";
+const DEFAULT_HERO_MOBILE_IMAGE_SIZES = "100vw";
 
-/** Next/Image default é 75; heros panorâmicos beneficiam de JPEG/WebP mais fiéis. */
-const HERO_IMAGE_QUALITY = 90;
+/** A qualidade alta reduz artefatos visíveis em texto e detalhes do hero. */
+const HERO_IMAGE_QUALITY = 98;
 
 const HERO_MEDIA_VIEWPORT =
-  "relative z-0 h-[min(72svh,max(22rem,calc(100vw*9/21)))] w-full overflow-hidden";
+  "relative z-0 h-[min(50svh,84vw)] min-h-[12rem] w-full overflow-hidden md:h-[min(72svh,max(22rem,calc(100vw*9/21)))]";
+const HERO_BUNDLED_ART_VIEWPORT =
+  "relative z-0 h-[min(90svh,177.78vw)] min-h-[18rem] w-full overflow-hidden md:h-[min(72svh,max(22rem,calc(100vw*9/21)))]";
 
 const STAGGER = 0.065;
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -70,8 +69,6 @@ export function HomeHeroClient({
   heroImageSizesMobile = DEFAULT_HERO_MOBILE_IMAGE_SIZES,
 }: Props) {
   const prefersReducedMotion = useReducedMotion();
-  const constraintsRef = useRef<HTMLDivElement>(null);
-  const sectionRef = useRef<HTMLElement>(null);
   const [narrowViewport, setNarrowViewport] = useState(false);
 
   useEffect(() => {
@@ -98,9 +95,6 @@ export function HomeHeroClient({
     badges: badgesRaw,
     primaryLabel,
     secondaryLabel,
-    textAlign,
-    contentLeftPct,
-    contentTopPct,
     eyebrowSizePx,
     headlineSizePx,
     sublineSizePx,
@@ -119,7 +113,6 @@ export function HomeHeroClient({
     imageOverrideMobileWidth,
     imageOverrideMobileHeight,
     imageObjectPosition,
-    patch,
   } = useHeroUiStore();
 
   const badges = useMemo(
@@ -144,6 +137,10 @@ export function HomeHeroClient({
         : null;
 
   const showVideo = !useImageOverride && hero.type === "video" && hero.url;
+  const bundledMobileHeroUrl =
+    !useImageOverride && hero.type === "image" && hero.url === BUNDLED_HERO_ART_URL
+      ? BUNDLED_HERO_MOBILE_ART_URL
+      : null;
 
   const hasHeroImageDims =
     useImageOverride &&
@@ -176,32 +173,8 @@ export function HomeHeroClient({
     return { backgroundColor: overlayColor };
   }, [gradientEnabled, gradientAngle, gradientFrom, gradientTo, overlayColor]);
 
-  const onTextPositionCommit = useCallback(
-    (left: number, top: number) => {
-      patch({ contentLeftPct: left, contentTopPct: top });
-    },
-    [patch]
-  );
-
-  const { blockRef, dragProps, positionLeftPct, positionTopPct } = useBoundedPercentDrag({
-    editable,
-    constraintsRef,
-    contentLeftPct,
-    contentTopPct,
-    onCommit: onTextPositionCommit,
-  });
-
   const motionLite =
     editable || prefersReducedMotion === true || narrowViewport;
-  const showParallax =
-    !editable && prefersReducedMotion !== true && !narrowViewport;
-
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end start"],
-  });
-  const parallaxMax = narrowViewport ? 14 : 32;
-  const parallaxY = useTransform(scrollYProgress, [0, 1], [0, showParallax ? parallaxMax : 0]);
 
   const mediaVariants = {
     hidden: { opacity: motionLite ? 1 : 0, scale: motionLite ? 1 : 1.03 },
@@ -218,7 +191,7 @@ export function HomeHeroClient({
   const contentShell = (
     <>
       <motion.p
-        className="font-bold uppercase tracking-[0.28em]"
+        className="inline-flex items-center gap-3 font-bold uppercase tracking-[0.28em] drop-shadow-[0_2px_12px_rgba(0,0,0,.8)] before:h-px before:w-8 before:bg-primary before:content-['']"
         style={{ fontSize: eyebrowSizePx, color: eyebrowColor }}
         initial={motionLite ? false : { opacity: 0, y: 12, filter: "blur(4px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -228,10 +201,10 @@ export function HomeHeroClient({
       </motion.p>
 
       <motion.h1
-        className="mt-3 break-words font-heading leading-[1.06] tracking-tight"
+        className="mt-3 break-words font-heading leading-[0.98] tracking-[-0.035em] drop-shadow-[0_4px_28px_rgba(0,0,0,.7)]"
         style={{
-          fontSize: `clamp(1.35rem, 3.2vw, ${headlineSizePx}px)`,
-          maxWidth: "min(20ch, 92vw)",
+          fontSize: `clamp(1.375rem, 4.4vw, ${headlineSizePx}px)`,
+          maxWidth: "min(16ch, 92vw)",
           color: headlineColor,
           fontWeight: headlineWeight,
         }}
@@ -259,7 +232,7 @@ export function HomeHeroClient({
       </motion.h1>
 
       <motion.p
-        className="mt-4 max-w-lg break-words leading-relaxed"
+        className="mt-4 max-w-lg break-words leading-relaxed drop-shadow-[0_2px_12px_rgba(0,0,0,.9)]"
         style={{ fontSize: sublineSizePx, color: sublineColor }}
         initial={motionLite ? false : { opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -271,9 +244,7 @@ export function HomeHeroClient({
       {badges.length > 0 && (
         <motion.div
           className={cn(
-            "mt-6 flex max-w-xl flex-wrap gap-2",
-            textAlign === "center" && "justify-center",
-            textAlign === "right" && "justify-end"
+            "mt-6 flex max-w-xl flex-wrap gap-2"
           )}
           initial={motionLite ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -284,7 +255,7 @@ export function HomeHeroClient({
             return (
             <motion.span
               key={`${entry.label}-${i}`}
-              className="inline-flex cursor-default select-none items-center gap-1.5 rounded-full border border-primary/50 bg-primary/[0.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-primary shadow-[inset_0_1px_0_hsl(var(--primary)/0.12)] backdrop-blur-sm transition-colors duration-300 hover:border-primary hover:bg-primary/15 md:gap-2 md:px-3.5 md:py-2 md:text-[11px]"
+              className="inline-flex cursor-default select-none items-center gap-1.5 rounded-lg border border-white/20 bg-black/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-[inset_0_1px_0_hsl(0_0%_100%/0.12)] backdrop-blur-md transition-colors duration-300 hover:border-primary/70 hover:bg-black/55 md:gap-2 md:px-3.5 md:py-2 md:text-[11px]"
               initial={motionLite ? false : { opacity: 0, y: 8, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.4, delay: seq * (5.5 + i * 0.35), ease: EASE }}
@@ -304,7 +275,7 @@ export function HomeHeroClient({
       )}
 
       <motion.div
-        className={cn("mt-8 flex flex-wrap items-center gap-3 sm:gap-4", textAlign === "center" && "justify-center")}
+        className="mt-6 flex w-full flex-col items-stretch gap-3 sm:mt-8 sm:w-auto sm:flex-row sm:items-center sm:gap-4"
         initial={motionLite ? false : { opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: seq * 6.5, ease: EASE }}
@@ -312,7 +283,7 @@ export function HomeHeroClient({
         <motion.div whileTap={motionLite ? undefined : { scale: 0.98 }}>
           <Link
             href={interactive ? "#catalogo" : "#"}
-            className="typo-btn group relative inline-flex h-12 min-h-[48px] items-center justify-center overflow-hidden rounded-full px-9 shadow-[0_12px_40px_-12px_hsl(38_92%_45%/0.55)] ring-1 ring-white/10 transition-shadow duration-300 hover:shadow-[0_18px_48px_-10px_hsl(38_92%_50%/0.65)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-11"
+            className="typo-btn group relative inline-flex h-12 min-h-[48px] w-full items-center justify-center overflow-hidden rounded-xl px-7 shadow-[0_12px_40px_-12px_hsl(38_92%_45%/0.55)] ring-1 ring-white/10 transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_48px_-10px_hsl(38_92%_50%/0.65)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto md:h-12"
             style={{ backgroundColor: ctaBackgroundColor, color: ctaForegroundColor }}
             onClick={(ev) => !interactive && ev.preventDefault()}
           >
@@ -336,7 +307,7 @@ export function HomeHeroClient({
         <motion.div whileTap={motionLite ? undefined : { scale: 0.98 }}>
           <Link
             href={interactive ? "#catalogo" : "#"}
-            className="typo-btn-sm inline-flex h-11 min-h-[44px] items-center justify-center rounded-full border border-white/18 bg-transparent px-6 text-white/85 transition-all duration-300 hover:border-primary/55 hover:bg-white/[0.06] hover:text-white md:h-10"
+            className="typo-btn-sm inline-flex h-12 min-h-[44px] w-full items-center justify-center rounded-xl border border-white/30 bg-black/20 px-6 text-white/90 backdrop-blur-sm transition-all duration-300 hover:border-white/65 hover:bg-black/35 hover:text-white sm:w-auto md:h-12"
             style={{ color: secondaryLinkColor }}
             onClick={(ev) => !interactive && ev.preventDefault()}
           >
@@ -349,31 +320,19 @@ export function HomeHeroClient({
 
   const block = (
     <div
-      ref={blockRef}
       className={cn(
-        "pointer-events-auto flex w-[min(92vw,36rem)] max-w-full flex-col",
-        alignClass[textAlign] ?? alignClass.left,
-        editable && "cursor-grab touch-none select-none active:cursor-grabbing [&_a]:pointer-events-none"
+        "pointer-events-auto flex w-full max-w-[42rem] flex-col items-start text-left lg:max-w-[min(35rem,42vw)]",
+        editable && "select-none [&_a]:pointer-events-none"
       )}
-      style={{
-        position: "absolute",
-        left: `${positionLeftPct}%`,
-        top: `${positionTopPct}%`,
-      }}
-      {...(editable ? dragProps : {})}
     >
-      {showParallax ? (
-        <motion.div style={{ y: parallaxY }} className="flex w-full flex-col will-change-transform">
-          {contentShell}
-        </motion.div>
-      ) : (
-        <div className="flex w-full flex-col">{contentShell}</div>
-      )}
+      <div className="flex w-full flex-col">{contentShell}</div>
     </div>
   );
 
+  const heroImageObjectPosition = showVideo ? imageObjectPosition : "50% 52%";
+
   return (
-    <section ref={sectionRef} className="border-b border-border/40">
+    <section className="relative border-b border-border/40">
       <div className="relative isolate w-full overflow-hidden bg-black">
         {mediaUrl &&
           (showDualLocalHero ? (
@@ -399,7 +358,7 @@ export function HomeHeroClient({
                       quality={HERO_IMAGE_QUALITY}
                       sizes={heroImageSizesMobile}
                       className="object-cover"
-                      style={{ objectPosition: imageObjectPosition }}
+                      style={{ objectPosition: heroImageObjectPosition }}
                       unoptimized={imageOverrideMobile!.startsWith("data:")}
                     />
                   </div>
@@ -426,13 +385,40 @@ export function HomeHeroClient({
                       quality={HERO_IMAGE_QUALITY}
                       sizes={heroImageSizes}
                       className="object-cover"
-                      style={{ objectPosition: imageObjectPosition }}
+                      style={{ objectPosition: heroImageObjectPosition }}
                       unoptimized={imageOverride!.startsWith("data:")}
                     />
                   </div>
                 </motion.div>
               </div>
             </>
+          ) : bundledMobileHeroUrl ? (
+            <div className={HERO_BUNDLED_ART_VIEWPORT}>
+              <picture className="absolute inset-0 z-0 block h-full w-full">
+                {!editable && (
+                  <>
+                    <source
+                      media="(max-width: 767px)"
+                      srcSet={BUNDLED_HERO_MOBILE_WEBP_URL}
+                      type="image/webp"
+                    />
+                    <source media="(max-width: 767px)" srcSet={bundledMobileHeroUrl} />
+                  </>
+                )}
+                <source srcSet={BUNDLED_HERO_DESKTOP_WEBP_URL} type="image/webp" />
+                <img
+                  src={mediaUrl}
+                  width={2067}
+                  height={761}
+                  alt=""
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  style={{ objectPosition: heroImageObjectPosition }}
+                />
+              </picture>
+            </div>
           ) : (
             <div className={HERO_MEDIA_VIEWPORT}>
               <motion.div
@@ -455,7 +441,7 @@ export function HomeHeroClient({
                     quality={HERO_IMAGE_QUALITY}
                     sizes={heroImageSizes}
                     className="object-cover"
-                    style={{ objectPosition: imageObjectPosition }}
+                    style={{ objectPosition: heroImageObjectPosition }}
                     unoptimized={mediaUrl.startsWith("data:")}
                   />
                 </div>
@@ -511,7 +497,7 @@ export function HomeHeroClient({
 
         {overlayOpacity > 0 && (
           <motion.div
-            className="pointer-events-none absolute inset-0 z-[2] backdrop-blur-[1px]"
+            className="pointer-events-none absolute inset-0 z-[2]"
             style={overlayBackdrop}
             aria-hidden
             initial={{ opacity: motionLite ? overlayOpacity : 0 }}
@@ -524,10 +510,16 @@ export function HomeHeroClient({
           />
         )}
 
-        <div className="absolute inset-0 z-10 px-4 py-10 sm:px-6 md:py-14 lg:px-8">
-          <div ref={constraintsRef} className="relative h-full min-h-0 w-full">
-            {block}
-          </div>
+        <div
+          className="hero-editorial-shade pointer-events-none absolute inset-0 z-[3]"
+          style={{ opacity: overlayOpacity * 0.6 }}
+          aria-hidden
+        />
+
+      </div>
+      <div className="relative z-10 bg-gradient-to-b from-black via-neutral-950 to-[#090909] px-4 py-8 sm:px-6 lg:absolute lg:inset-0 lg:flex lg:items-center lg:bg-none lg:px-8 lg:py-14">
+        <div className="mx-auto flex w-full max-w-[1280px] items-center">
+          {block}
         </div>
       </div>
     </section>

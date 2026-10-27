@@ -11,6 +11,7 @@ import {
   Settings,
   ShoppingBag,
   Store,
+  TicketPercent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ const items: NavItem[] = [
   { href: "/admin", label: "Painel", shortLabel: "Painel", icon: LayoutDashboard, section: "Visão geral" },
   { href: "/admin/orders", label: "Pedidos", shortLabel: "Pedidos", icon: ShoppingBag, section: "Operação" },
   { href: "/admin/products", label: "Produtos", shortLabel: "Produtos", icon: Package, section: "Operação" },
+  { href: "/admin/promotions", label: "Promoções", shortLabel: "Ofertas", icon: TicketPercent, section: "Vitrine" },
   { href: "/admin/customize", label: "Customização", shortLabel: "Loja", icon: Palette, section: "Vitrine" },
   { href: "/admin/settings", label: "Configurações", shortLabel: "Ajustes", icon: Settings, section: "Loja" },
 ];
