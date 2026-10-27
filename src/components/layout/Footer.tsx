@@ -84,14 +84,9 @@ export function Footer({ store }: { store: StorePublicSettings }) {
           <div>
             <p className="typo-label mb-4 text-foreground">Contato</p>
             <div className="font-body space-y-2 text-sm text-muted-foreground">
-              {email ? <p>{email}</p> : <p className="text-zinc-600">Email (configure no admin)</p>}
+              {email ? <p>{email}</p> : null}
               {phone ? <p>{phone}</p> : null}
               {city ? <p>{city}</p> : null}
-              {!email && !phone && !city ? (
-                <p className="text-xs text-zinc-600">
-                  Defina e-mail e telefone em <span className="text-foreground">Admin → Configurações</span>.
-                </p>
-              ) : null}
             </div>
           </div>
         </div>

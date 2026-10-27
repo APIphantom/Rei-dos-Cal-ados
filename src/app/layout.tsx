@@ -8,6 +8,13 @@ import { getStorePublicSettings } from "@/lib/store-public-settings";
 export const metadata: Metadata = {
   title: "Rei Dos Calçados",
   description: "Calçados premium com entrega rápida e até 6x sem juros.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: [{ url: "/favicon.ico" }],
+  },
 };
 
 export const viewport: Viewport = {

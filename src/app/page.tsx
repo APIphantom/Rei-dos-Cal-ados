@@ -25,20 +25,18 @@ export default async function HomePage() {
 
       <PromoBannerClient />
 
-      <PromotionSection promotions={promotions} />
-
       <BrandsCarousel brands={STORE_BRANDS} />
+
+      <PromotionSection promotions={promotions} />
 
       <FeaturedProduct product={featured} />
 
       <section className="border-b border-border/40 py-12 md:py-16">
         <Container>
           {products.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border/50 bg-card/[0.2] p-10 text-center">
-              <p className="text-sm text-muted-foreground">
-                Nenhum produto no catálogo ainda. Cadastre itens em{" "}
-                <span className="text-foreground">Admin → Produtos</span>.
-              </p>
+            <div className="rounded-3xl border border-dashed border-border/70 bg-card/30 px-6 py-14 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Catálogo</p>
+              <p className="mt-3 font-heading text-2xl font-bold text-foreground">Ainda não há produtos disponíveis.</p>
             </div>
           ) : (
             <Suspense

@@ -15,17 +15,7 @@ export function TestimonialsCarousel() {
   );
   const [emblaRef] = useEmblaCarousel({ align: "start", loop: items.length > 1, slidesToScroll: 1, containScroll: "trimSnaps" });
 
-  if (items.length === 0) {
-    return (
-      <section id="depoimentos" className="border-b border-border/40 py-12 md:py-16">
-        <Container>
-          <p className="text-sm text-muted-foreground">
-            Nenhum depoimento no momento. Adicione em <span className="text-foreground">Admin → Configurações</span>.
-          </p>
-        </Container>
-      </section>
-    );
-  }
+  if (items.length === 0) return null;
 
   return (
     <section id="depoimentos" className="border-b border-border/40 py-12 md:py-16">

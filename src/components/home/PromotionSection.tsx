@@ -14,7 +14,7 @@ export function PromotionSection({ promotions }: { promotions: Promotion[] }) {
           <p className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-primary">
             <Sparkles className="h-3.5 w-3.5" aria-hidden /> Ofertas da loja
           </p>
-          <h2 className="mt-2 font-heading text-2xl font-bold tracking-tight text-white sm:text-3xl">Promoções em destaque</h2>
+          <h2 className="mt-2 font-heading text-2xl font-bold tracking-tight text-white sm:text-3xl">Promoção de destaque</h2>
         </div>
 
         <div className="space-y-5">
